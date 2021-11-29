@@ -23,19 +23,28 @@ var config = builder.Build();
 var allConfig = new Config(config);
 
 // Init DB
-
 using (var db = new ColdStorageDbContext(allConfig.SQLConnectionString))
 {
     await DbInitializer.Init(db, allConfig.DevConfig);
 }
 
+// Start discovery
 var discovery = new SharePointDiscovery(allConfig);
+try
+{
+    await discovery.StartAsync();
+}
+catch (Microsoft.Graph.ServiceException ex)
+{
+    if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+    {
+        Console.WriteLine($"Application '{allConfig.AzureAdConfig.ClientID}' does not have access to the resources it needs.");
+    }
+    else
+    {
+        throw;
+    }
+}
 
-await discovery.StartAsync();
+
 Console.WriteLine("Done");
-
-
-//builder.Services.AddDbContext<ColdStorageDbContext>(options => options
-//    .UseSqlServer(Configuration.GetConnectionString(SystemConstants.CONNSTR_NAME_TENANT),
-//    moreOptions => moreOptions.CommandTimeout(120))
-//);

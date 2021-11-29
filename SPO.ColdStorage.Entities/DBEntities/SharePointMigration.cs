@@ -11,11 +11,10 @@ namespace SPO.ColdStorage.Entities.DBEntities
     public class SharePointMigration : BaseDBObject
     {
         [Column("started")]
-        public DateTime Started { get; set; }
-
+        public DateTime? Started { get; set; }
 
         [Column("finished")]
-        public DateTime Finished { get; set; }
+        public DateTime? Finished { get; set; }
 
         [Column("name")]
         public string Name { get; set; } = string.Empty;
