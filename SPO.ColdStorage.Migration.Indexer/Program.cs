@@ -5,6 +5,7 @@
 // dotnet user-secrets set "ConnectionStrings:ServiceBus" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "Dev:DefaultStorageConnection" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "Dev:DefaultSharePointSite" "" --project "SPO.ColdStorage.Migration.Indexer"
+// dotnet user-secrets set "KeyVaultUrl" "https://spocoldstoragedev.vault.azure.net/" --project "SPO.ColdStorage.Migration.Indexer"
 
 using Microsoft.Extensions.Configuration;
 using SPO.ColdStorage.Entities;
