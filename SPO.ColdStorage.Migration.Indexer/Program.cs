@@ -1,8 +1,11 @@
 ﻿// dotnet user-secrets set "AzureAd:ClientID" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "AzureAd:Secret" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "AzureAd:TenantId" "" --project "SPO.ColdStorage.Migration.Indexer"
+// dotnet user-secrets set "ConnectionStrings:ColdStorageDbContext" "Server=(localdb)\\mssqllocaldb;Database=SPOColdStorageDbContextDev;Trusted_Connection=True;MultipleActiveResultSets=true" --project "SPO.ColdStorage.Migration.Indexer"
+// dotnet user-secrets set "ConnectionStrings:ServiceBus" "" --project "SPO.ColdStorage.Migration.Indexer"
 
 using Microsoft.Extensions.Configuration;
+using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 using System.Reflection;
 
@@ -15,10 +18,15 @@ var builder = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", true);
 
 var config = builder.Build(); 
-var aadConfig = new AzureAdConfig(config);
+var allConfig = new Config(config);
 
-var discovery = new SharePointDiscovery(new Azure.Identity.ClientSecretCredential(aadConfig.TenantId, aadConfig.ClientID, aadConfig.Secret));
+var discovery = new SharePointDiscovery(allConfig);
 
 await discovery.StartAsync();
 Console.WriteLine("Done");
 
+
+//builder.Services.AddDbContext<ColdStorageDbContext>(options => options
+//    .UseSqlServer(Configuration.GetConnectionString(SystemConstants.CONNSTR_NAME_TENANT),
+//    moreOptions => moreOptions.CommandTimeout(120))
+//);

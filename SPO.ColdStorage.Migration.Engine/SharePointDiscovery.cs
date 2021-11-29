@@ -1,18 +1,25 @@
 ﻿using Azure.Identity;
+using SPO.ColdStorage.Entities;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
     public class SharePointDiscovery
     {
-        public SharePointDiscovery(ClientSecretCredential clientSecretCredential)
-        {
-            this.ClientSecretCredential = clientSecretCredential;
-        }
-        public ClientSecretCredential ClientSecretCredential { get; set; }
+        private ClientSecretCredential _clientSecretCredential;
+        private Config _config;
 
-        public Task StartAsync()
+        public SharePointDiscovery(Config config)
         {
-            throw new NotImplementedException();
+            _clientSecretCredential = new ClientSecretCredential(config.AzureAdConfig.TenantId, config.AzureAdConfig.ClientID, config.AzureAdConfig.Secret);
+            _config = config;
+        }
+
+        public async Task StartAsync()
+        {
+            using (var db = new ColdStorageDbContext(this._config.SQLConnectionString))
+            {
+
+            }
         }
     }
 }

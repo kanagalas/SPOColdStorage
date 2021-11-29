@@ -8,12 +8,11 @@ namespace SPO.ColdStorage.Migration.Engine
 {
     public class AzureAdConfig
     {
-        public AzureAdConfig(Microsoft.Extensions.Configuration.IConfigurationRoot config)
+        public AzureAdConfig(Microsoft.Extensions.Configuration.IConfigurationSection config)
         {
-            var aadConfig = config.GetSection("AzureAd");
-            this.ClientID = aadConfig["ClientID"];
-            this.Secret = aadConfig["Secret"];
-            this.TenantId = aadConfig["TenantId"];
+            this.ClientID = config["ClientID"];
+            this.Secret = config["Secret"];
+            this.TenantId = config["TenantId"];
         }
 
         public string Secret { get; set; }
