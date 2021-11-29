@@ -1,17 +1,16 @@
 ﻿using SPO.ColdStorage.Entities.Abstract;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SPO.ColdStorage.Entities
+namespace SPO.ColdStorage.Entities.DBEntities
 {
-    public class SuccesfulMigration : BaseFileRelatedClass
+    public class TargetSharePointSite : BaseDBObject
     {
-        [Column("migrated")]
-        public DateTime Migrated { get; set; }
+        [Column("graph_site_id")]
+        public string GraphSiteId { get; set; } = string.Empty;
     }
 }

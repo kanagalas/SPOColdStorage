@@ -7,9 +7,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SPO.ColdStorage.Entities
+namespace SPO.ColdStorage.Entities.DBEntities
 {
-    public class File : BaseDBObject
+    public class SharePointFile : BaseDBObject
     {
         [Required]
         [Column("file_name")]

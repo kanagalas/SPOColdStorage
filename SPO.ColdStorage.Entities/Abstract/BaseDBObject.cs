@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SPO.ColdStorage.Entities.DBEntities;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -29,7 +30,7 @@ namespace SPO.ColdStorage.Entities.Abstract
         public int FileId { get; set; }
 
         [Required]
-        public File File { get; set; } = new File();
+        public SharePointFile File { get; set; } = new SharePointFile();
 
 
         [ForeignKey(nameof(Migration))]
@@ -37,6 +38,6 @@ namespace SPO.ColdStorage.Entities.Abstract
         public int MigrationId { get; set; }
 
         [Required]
-        public Migration Migration { get; set; } = new Migration();
+        public SharePointMigration Migration { get; set; } = new SharePointMigration();
     }
 }

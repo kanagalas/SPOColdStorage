@@ -3,6 +3,8 @@
 // dotnet user-secrets set "AzureAd:TenantId" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "ConnectionStrings:ColdStorageDbContext" "Server=(localdb)\\mssqllocaldb;Database=SPOColdStorageDbContextDev;Trusted_Connection=True;MultipleActiveResultSets=true" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "ConnectionStrings:ServiceBus" "" --project "SPO.ColdStorage.Migration.Indexer"
+// dotnet user-secrets set "Dev:DefaultStorageConnection" "" --project "SPO.ColdStorage.Migration.Indexer"
+// dotnet user-secrets set "Dev:DefaultSharePointSite" "" --project "SPO.ColdStorage.Migration.Indexer"
 
 using Microsoft.Extensions.Configuration;
 using SPO.ColdStorage.Entities;
@@ -19,6 +21,13 @@ var builder = new ConfigurationBuilder()
 
 var config = builder.Build(); 
 var allConfig = new Config(config);
+
+// Init DB
+
+using (var db = new ColdStorageDbContext(allConfig.SQLConnectionString))
+{
+    await DbInitializer.Init(db, allConfig.DevConfig);
+}
 
 var discovery = new SharePointDiscovery(allConfig);
 
