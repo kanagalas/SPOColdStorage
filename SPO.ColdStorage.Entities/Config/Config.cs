@@ -31,8 +31,11 @@ namespace SPO.ColdStorage.Entities
 
             this.SQLConnectionString = connectionStringsConfig["SQLConnectionString"];
             this.ServiceBusConnectionString = connectionStringsConfig["ServiceBus"];
+            this.BaseServerAddress = config["BaseServerAddress"];
             this.KeyVaultUrl = config["KeyVaultUrl"];
         }
+
+        public string BaseServerAddress { get; set; }
         public string SQLConnectionString { get; set; }
         public string ServiceBusConnectionString { get; set; }
         public string KeyVaultUrl { get; set; }

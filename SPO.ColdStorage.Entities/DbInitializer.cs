@@ -28,7 +28,7 @@ namespace SPO.ColdStorage.Entities
             {
                 Name = "Test migration",
                 StorageAccount = config.DefaultStorageConnection,
-                TargetSites = new List<TargetSharePointSite> { new TargetSharePointSite { GraphSiteId = config.DefaultSharePointSite } }
+                TargetSites = new List<TargetSharePointSite> { new TargetSharePointSite { RootURL = config.DefaultSharePointSite } }
             });
             await context.SaveChangesAsync();
 

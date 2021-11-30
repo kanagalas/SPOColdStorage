@@ -8,13 +8,11 @@ namespace SPO.ColdStorage.Migration.Engine
 {
     public class SharePointDiscovery
     {
-        private ClientSecretCredential _clientSecretCredential;
         private Config _config;
         private DebugTracer _tracer;
 
         public SharePointDiscovery(Config config)
         {
-            _clientSecretCredential = new ClientSecretCredential(config.AzureAdConfig.TenantId, config.AzureAdConfig.ClientID, config.AzureAdConfig.Secret);
             _config = config;
             _tracer = DebugTracer.ConsoleOnlyTracer();
         }
@@ -38,31 +36,37 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             foreach (var siteId in m.TargetSites)
             {
-                await StartMigration(siteId.GraphSiteId, db);
+                await StartMigration(siteId.RootURL, db);
             }
         }
-        async Task StartMigration(string siteId, ColdStorageDbContext db)
+        async Task StartMigration(string siteUrl, ColdStorageDbContext db)
         {
-            var cert2 = await KeyVaultAccess.RetrieveCertificate("AzureAutomationSPOAccess", _config);
+            var appRegistrationCert = await KeyVaultAccess.RetrieveCertificate("AzureAutomationSPOAccess", _config);
             var app = ConfidentialClientApplicationBuilder.Create(_config.AzureAdConfig.ClientID)
-                                                  .WithCertificate(cert2)
+                                                  .WithCertificate(appRegistrationCert)
                                                   .WithAuthority($"https://login.microsoftonline.com/{_config.AzureAdConfig.TenantId}")
                                                   .Build();
-            var scopes = new string[] { $"https://m365x352268.sharepoint.com/.default" };
+            var scopes = new string[] { $"{_config.BaseServerAddress}/.default" };
             var result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
 
 
-            var ctx = new ClientContext("https://m365x352268.sharepoint.com/sites/MigrationHost");
+            var ctx = new ClientContext(siteUrl);
             ctx.ExecutingWebRequest += (s, e) =>
             {
                 e.WebRequestExecutor.RequestHeaders["Authorization"] = "Bearer " + result.AccessToken;
             };
 
 
-            _tracer.TrackTrace($"Migrating site ID '{siteId}'...");
+            _tracer.TrackTrace($"Migrating site '{siteUrl}'...");
             
-            var crawler = new SiteCrawler(ctx, siteId, db, _tracer);
+            var crawler = new SiteCrawler(ctx, _tracer);
+            crawler.SharePointFileFound += Crawler_SharePointFileFound;
             await crawler.Start();
+        }
+
+        private void Crawler_SharePointFileFound(object? sender, Model.SharePointFileInfoEventArgs e)
+        {
+            _tracer.TrackTrace($"+file '{_config.BaseServerAddress + e.SharePointFileInfo.Url}'...");
         }
     }
 }

@@ -10,7 +10,7 @@ namespace SPO.ColdStorage.Entities.DBEntities
 {
     public class TargetSharePointSite : BaseDBObject
     {
-        [Column("graph_site_id")]
-        public string GraphSiteId { get; set; } = string.Empty;
+        [Column("root_url")]
+        public string RootURL { get; set; } = string.Empty;
     }
 }
