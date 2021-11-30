@@ -3,6 +3,7 @@
 // dotnet user-secrets set "AzureAd:TenantId" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "ConnectionStrings:ColdStorageDbContext" "Server=(localdb)\\mssqllocaldb;Database=SPOColdStorageDbContextDev;Trusted_Connection=True;MultipleActiveResultSets=true" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "ConnectionStrings:ServiceBus" "" --project "SPO.ColdStorage.Migration.Indexer"
+// dotnet user-secrets set "ConnectionStrings:Storage" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "Dev:DefaultStorageConnection" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "Dev:DefaultSharePointSite" "" --project "SPO.ColdStorage.Migration.Indexer"
 // dotnet user-secrets set "KeyVaultUrl" "https://spocoldstoragedev.vault.azure.net" --project "SPO.ColdStorage.Migration.Indexer"
@@ -13,7 +14,7 @@ using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 using System.Reflection;
 
-Console.WriteLine("Hello, World!");
+Console.WriteLine("Indexer");
 
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -31,8 +32,8 @@ using (var db = new ColdStorageDbContext(allConfig.SQLConnectionString))
 }
 
 // Start discovery
-var discovery = new SharePointDiscovery(allConfig);
-await discovery.StartAsync();
+var discovery = new SharePointContentIndexer(allConfig);
+await discovery.StartMigrateNeededFiles();
 
 
 Console.WriteLine("Done");

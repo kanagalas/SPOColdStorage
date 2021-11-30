@@ -113,14 +113,14 @@ namespace SPO.ColdStorage.Migration.Engine
             }
         }
 
-        SharePointFileInfo GetSharePointFileInfo(ListItem item, string url)
+        SharePointFileUpdateInfo GetSharePointFileInfo(ListItem item, string url)
         {
             var dt = DateTime.MinValue;
             if (DateTime.TryParse(item.FieldValues["Modified"]?.ToString(), out dt))
             {
-                return new SharePointFileInfo
+                return new SharePointFileUpdateInfo
                 {
-                    Url = url,
+                    FileRelativePath = url,
                     LastModified = dt
                 };
             }

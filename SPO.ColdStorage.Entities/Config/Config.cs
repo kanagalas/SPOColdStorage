@@ -30,15 +30,22 @@ namespace SPO.ColdStorage.Entities
             var connectionStringsConfig = config.GetSection("ConnectionStrings");
 
             this.SQLConnectionString = connectionStringsConfig["SQLConnectionString"];
+            this.StorageConnectionString = connectionStringsConfig["Storage"];
             this.ServiceBusConnectionString = connectionStringsConfig["ServiceBus"];
+
+            // Misc
             this.BaseServerAddress = config["BaseServerAddress"];
             this.KeyVaultUrl = config["KeyVaultUrl"];
+            this.BlobContainerName = config["BlobContainerName"];
         }
 
         public string BaseServerAddress { get; set; }
         public string SQLConnectionString { get; set; }
         public string ServiceBusConnectionString { get; set; }
+        public string ServiceBusQueueName => "filediscovery";
+        public string StorageConnectionString { get; set; }
         public string KeyVaultUrl { get; set; }
+        public string BlobContainerName { get; set; }
 
         public AzureAdConfig AzureAdConfig { get; set; }
         public DevConfig DevConfig { get; set; }

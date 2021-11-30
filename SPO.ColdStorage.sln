@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPO.ColdStorage.Migration.E
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPO.ColdStorage.Tests", "SPO.ColdStorage.Tests\SPO.ColdStorage.Tests.csproj", "{15D36889-F466-430F-89CB-65DC25DBA892}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SPO.ColdStorage.Entities", "SPO.ColdStorage.Entities\SPO.ColdStorage.Entities.csproj", "{B94BA2EF-8BDA-4040-A725-D1B6BD5062EA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPO.ColdStorage.Entities", "SPO.ColdStorage.Entities\SPO.ColdStorage.Entities.csproj", "{B94BA2EF-8BDA-4040-A725-D1B6BD5062EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SPO.ColdStorage.Migration.Migrator", "SPO.ColdStorage.Migration.Migrator\SPO.ColdStorage.Migration.Migrator.csproj", "{51826CB7-1095-461D-9288-2FB55B5C588E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{B94BA2EF-8BDA-4040-A725-D1B6BD5062EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B94BA2EF-8BDA-4040-A725-D1B6BD5062EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B94BA2EF-8BDA-4040-A725-D1B6BD5062EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51826CB7-1095-461D-9288-2FB55B5C588E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51826CB7-1095-461D-9288-2FB55B5C588E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51826CB7-1095-461D-9288-2FB55B5C588E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51826CB7-1095-461D-9288-2FB55B5C588E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
