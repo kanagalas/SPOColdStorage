@@ -1,4 +1,5 @@
 ﻿using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,7 @@ namespace SPO.ColdStorage.Migration.Engine
     /// </summary>
     public class DebugTracer
     {
-        private TelemetryClient AppInsights { get; set; }
+        private TelemetryClient? AppInsights { get; set; }
 
 
         #region Constructors
@@ -25,9 +26,12 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             if (!string.IsNullOrEmpty(appInsightsKey))
             {
-                this.AppInsights = new TelemetryClient() { InstrumentationKey = appInsightsKey };
+                var configuration = TelemetryConfiguration.CreateDefault();
+                configuration.InstrumentationKey = appInsightsKey;
+
+                this.AppInsights = new TelemetryClient(configuration); ;
             }
-            if (!string.IsNullOrEmpty(context))
+            if (!string.IsNullOrEmpty(context) && AppInsights != null)
             {
                 AppInsights.Context.Operation.Name = context;
             }
@@ -78,7 +82,7 @@ namespace SPO.ColdStorage.Migration.Engine
             Console.WriteLine($"New '{desc}' event; context: '{context}'.");
             if (AppInsights != null)
             {
-                string eventName = Enum.GetName(typeof(AnalyticsEvent), analyticsEvent);
+                string eventName = Enum.GetName(typeof(AnalyticsEvent), analyticsEvent) ?? string.Empty;
                 if (string.IsNullOrEmpty(context))
                 {
                     AppInsights.TrackEvent(eventName, new Dictionary<string, string>() { { "context", context } });
