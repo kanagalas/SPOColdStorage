@@ -1,26 +1,22 @@
-﻿using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.Models;
+﻿using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Azure.Services.AppAuthentication;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using SPO.ColdStorage.Entities;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
     internal class KeyVaultAccess
     {
-        public static async Task<X509Certificate2> RetrieveCertificate(string name, string keyVaultUrl)
+        public static async Task<X509Certificate2> RetrieveCertificate(string name, Config config)
         {
-            var serviceTokenProvider = new AzureServiceTokenProvider();
-            var keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(serviceTokenProvider.KeyVaultTokenCallback));
+            var client = new SecretClient(vaultUri: new Uri(config.KeyVaultUrl), credential: new ClientSecretCredential(config.AzureAdConfig.TenantId, config.AzureAdConfig.ClientID, config.AzureAdConfig.Secret));
 
-            var secretUri = $"{keyVaultUrl}/Secrets/{name}";     // The Name of the secret / certificate      
-            SecretBundle secret = await keyVaultClient.GetSecretAsync(secretUri);
 
-            X509Certificate2 certificate = new X509Certificate2(Convert.FromBase64String(secret.Value));
+            var secretUri = $"{config.KeyVaultUrl}/Secrets/{name}";     // The Name of the secret / certificate      
+            var secret = await client.GetSecretAsync(name);
+
+            var certificate = new X509Certificate2(Convert.FromBase64String(secret.Value.Value));
             return certificate;
 
         }
