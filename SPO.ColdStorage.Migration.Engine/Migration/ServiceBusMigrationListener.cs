@@ -66,7 +66,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             string body = args.Message.Body.ToString();
             var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileInfo>(body);
-            if (msg != null && msg.IsValid)
+            if (msg != null && msg.IsValidInfo)
             {
                 _tracer.TrackTrace($"Received: {msg.FileRelativePath}");
                 await StartMigrationWithCachedOrNewContext(msg);
@@ -99,7 +99,7 @@ namespace SPO.ColdStorage.Migration.Engine
             ctx = _siteContexts[msg.SiteUrl];
 
             // Begin migration on common class
-            await _sharePointFileMigrator.StartMigrationFromSharePointToBlobStorage(msg, ctx);
+            await _sharePointFileMigrator.MigrateFromSharePointToBlobStorage(msg, ctx);
         }
 
     }

@@ -65,7 +65,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
             crawler.SharePointFileFound += Crawler_SharePointFileFound;
-            await crawler.Start();
+            await crawler.CrawlContextWeb();
         }
 
         /// <summary>

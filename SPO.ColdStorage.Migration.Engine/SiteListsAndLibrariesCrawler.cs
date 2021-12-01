@@ -6,7 +6,7 @@ namespace SPO.ColdStorage.Migration.Engine
     /// <summary>
     /// Finds files in a SharePoint site collection
     /// </summary>
-    internal class SiteListsAndLibrariesCrawler
+    public class SiteListsAndLibrariesCrawler
     {
         private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
@@ -18,7 +18,7 @@ namespace SPO.ColdStorage.Migration.Engine
             this._tracer = tracer;
         }
 
-        internal async Task Start()
+        public async Task CrawlContextWeb()
         {
             var rootWeb = _spClient.Web;
             _spClient.Load(rootWeb);
@@ -43,13 +43,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
             foreach (var list in web.Lists)
             {
-                _spClient.Load(list.RootFolder);
-                _spClient.Load(list, l => l.RootFolder.Name);
-                await _spClient.ExecuteQueryAsync();
 
                 if (!list.Hidden)
                 {
-                    await ProcessListItemsRequest(list);
+                    await CrawlList(list);
                 }
                 else
                 {
@@ -58,61 +55,94 @@ namespace SPO.ColdStorage.Migration.Engine
             }
         }
 
-        private async Task ProcessListItemsRequest(List list)
+        public async Task<List<SharePointFileUpdateInfo>> CrawlList(List list)
         {
+            _spClient.Load(list, l=> l.BaseType);
+            _spClient.Load(list.RootFolder);
+            _spClient.Load(list, l => l.RootFolder.Name);
+            await _spClient.ExecuteQueryAsync();
+
+            var results = new List<SharePointFileUpdateInfo>();
+
             var listItems = list.GetItems(new CamlQuery());
             _spClient.Load(listItems);
             await _spClient.ExecuteQueryAsync();
 
-            _tracer.TrackTrace($"List URL: {list.RootFolder.ServerRelativeUrl}");
 
             foreach (var item in listItems)
             {
+                SharePointFileUpdateInfo? foundFileInfo = null;
                 if (list.BaseType == BaseType.GenericList)
                 {
-                    await ProcessListItem(item);
+                    results.AddRange(await ProcessListItemAttachments(item));
                 }
                 else if (list.BaseType == BaseType.DocumentLibrary)
                 {
-                    await ProcessDocLibItem(item);
+                    foundFileInfo = await ProcessDocLibItem(item);
                 }
+                if (foundFileInfo != null)
+                    results.Add(foundFileInfo!);
             }
+
+            _tracer.TrackTrace($"Found {results.Count} files to migrate in list: {list.RootFolder.ServerRelativeUrl}");
+
+            return results;
         }
 
-        private async Task ProcessDocLibItem(ListItem item)
+        /// <summary>
+        /// Process document library item.
+        /// </summary>
+        private async Task<SharePointFileUpdateInfo?> ProcessDocLibItem(ListItem docListItem)
         {
-            switch (item.FileSystemObjectType)
+            switch (docListItem.FileSystemObjectType)
             {
                 case FileSystemObjectType.File:
 
-                    _spClient.Load(item.File);
-                    _spClient.Load(item.File, i => i.ServerRelativeUrl);
+                    _spClient.Load(docListItem.File);
+                    _spClient.Load(docListItem.File, i => i.ServerRelativeUrl);
                     await _spClient.ExecuteQueryAsync();
 
-                    if (item.File.Exists)
+                    if (docListItem.File.Exists)
                     {
-                        this.SharePointFileFound?.Invoke(this, new SharePointFileInfoEventArgs
+                        var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl);
+                        var args = new SharePointFileInfoEventArgs
                         {
-                            SharePointFileInfo = GetSharePointFileInfo(item, item.File.ServerRelativeUrl)
-                        });
+                            SharePointFileInfo = foundFileInfo
+                        };
+                        this.SharePointFileFound?.Invoke(this, args);
+
+                        return foundFileInfo;
                     }
                     break;
             }
+
+            return null;
         }
 
-        private async Task ProcessListItem(ListItem item)
+        /// <summary>
+        /// Process custom list item attachments
+        /// </summary>
+        private async Task<List<SharePointFileUpdateInfo>> ProcessListItemAttachments(ListItem item)
         {
+            var attachmentsResults = new List<SharePointFileUpdateInfo>();
+
             _spClient.Load(item.AttachmentFiles);
             await _spClient.ExecuteQueryAsync();
 
             foreach (var attachment in item.AttachmentFiles)
             {
-                this.SharePointFileFound?.Invoke(this, new SharePointFileInfoEventArgs
+                var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl);
+                var args = new SharePointFileInfoEventArgs
                 {
-                    SharePointFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl)
-                });
+                    SharePointFileInfo = foundFileInfo
+                };
+                this.SharePointFileFound?.Invoke(this, args);
+                attachmentsResults.Add(foundFileInfo);
             }
+
+            return attachmentsResults;
         }
+
 
         SharePointFileUpdateInfo GetSharePointFileInfo(ListItem item, string url)
         {

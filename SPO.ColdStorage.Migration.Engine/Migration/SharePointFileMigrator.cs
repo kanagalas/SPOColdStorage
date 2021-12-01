@@ -47,19 +47,21 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             return count == 0;
         }
 
-        public async Task StartMigrationFromSharePointToBlobStorage(SharePointFileInfo msg, ClientContext ctx)
+        public async Task MigrateFromSharePointToBlobStorage(SharePointFileInfo msg, ClientContext ctx)
         {
-
-            // Download from SP and copy to blob
+            // Download from SP to local
             var downloader = new SharePointFileDownloader(ctx, _config);
             var tempFileName = await downloader.DownloadFileToTempDir(msg);
 
+            // Index file properties
             var searchIndexer = new SharePointFileSearchProcessor(_config);
             await searchIndexer.ProcessFileContent(msg);
 
+            // Upload local file to az blob
             var blobUploader = new BlobStorageUploader(_config);
             await blobUploader.UploadFileToAzureBlob(tempFileName, msg);
 
+            // Clean-up
             System.IO.File.Delete(tempFileName);
         }
     }
