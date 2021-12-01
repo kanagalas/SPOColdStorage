@@ -8,9 +8,9 @@ using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
-    public class SharePointFileProcessor : BaseComponent
+    public class SharePointFileSearchProcessor : BaseComponent
     {
-        public SharePointFileProcessor(Config config) : base(config)
+        public SharePointFileSearchProcessor(Config config) : base(config)
         {
         }
 

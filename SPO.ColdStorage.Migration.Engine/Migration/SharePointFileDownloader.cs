@@ -5,15 +5,15 @@ using System.IO;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
-    public class FileMigrator : BaseComponent
+    public class SharePointFileDownloader : BaseComponent
     {
         private ClientContext _context;
-        public FileMigrator(ClientContext clientContext, Config config) :base(config)
+        public SharePointFileDownloader(ClientContext clientContext, Config config) :base(config)
         {
             _context = clientContext;
         }
 
-        public async Task MigrateSharePointFileToBlobStorage(SharePointFileInfo sharePointFile) 
+        public async Task<string> DownloadFileToTempDir(SharePointFileInfo sharePointFile) 
         {
             _context.Load(_context.Web);
             var filetoDownload = _context.Web.GetFileByServerRelativeUrl(sharePointFile.FileRelativePath);
@@ -21,9 +21,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             await _context.ExecuteQueryAsync();
 
             // Write to temp file
-            var tempFileName = Path.GetTempPath().TrimEnd(@"\".ToCharArray()) + sharePointFile.FileRelativePath.Replace("/", @"\");
-            var tempFileInfo = new FileInfo(tempFileName);
-            Directory.CreateDirectory(tempFileInfo.DirectoryName!);
+            var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
             var spStreamResult = filetoDownload.OpenBinaryStream();
             await _context.ExecuteQueryAsync();
@@ -37,6 +35,17 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                     spStreamResult.Value.CopyTo(fileStream);
                 }
             }
+
+            return tempFileName;
+        }
+
+        public static string GetTempFileNameAndCreateDir(SharePointFileInfo sharePointFile)
+        {
+            var tempFileName = Path.GetTempPath().TrimEnd(@"\".ToCharArray()) + sharePointFile.FileRelativePath.Replace("/", @"\");
+            var tempFileInfo = new FileInfo(tempFileName);
+            Directory.CreateDirectory(tempFileInfo.DirectoryName!);
+
+            return tempFileName;
         }
     }
 }

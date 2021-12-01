@@ -22,7 +22,6 @@ namespace SPO.ColdStorage.Migration.Engine
 
         public async Task Begin()
         {
-
             try
             {
                 // add handler to process messages
@@ -78,7 +77,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private async Task ProcessFileMessage(SharePointFileInfo msg)
         {
-            // Find/create context
+            // Find/create SP context
             ClientContext ctx;
             if (!_siteContexts.ContainsKey(msg.SiteUrl))
             {
@@ -86,12 +85,17 @@ namespace SPO.ColdStorage.Migration.Engine
             }
             ctx = _siteContexts[msg.SiteUrl];
 
-            // Migrate
-            var m = new FileMigrator(ctx, _config);
-            await m.MigrateSharePointFileToBlobStorage(msg);
+            // Download from SP and copy to blob
+            var m = new SharePointFileDownloader(ctx, _config);
+            var tempFileName = await m.DownloadFileToTempDir(msg);
+
+            var blobUploader = new BlobUploader(_config);
+            await blobUploader.UploadFileToAzureBlob(tempFileName, msg);
+
+            System.IO.File.Delete(tempFileName);
         }
 
-        // handle any errors when receiving messages
+        // Handle any errors when receiving SB messages
         static Task ErrorHandler(ProcessErrorEventArgs args)
         {
             Console.WriteLine(args.Exception.ToString());
