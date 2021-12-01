@@ -4,27 +4,29 @@ using Azure.Storage.Blobs.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
+    /// <summary>
+    /// Finds files to migrate in a SharePoint site-collection
+    /// </summary>
     public class SharePointContentIndexer : BaseComponent
     {
-        private ServiceBusClient _sbClient;
-        private ServiceBusSender _sbSender;
         private BlobServiceClient _blobServiceClient;
         private BlobContainerClient? _containerClient;
+        private SharePointFileMigrator _sharePointFileMigrator;
 
         public SharePointContentIndexer(Config config) :base(config)
         {
             var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ServiceBusConnectionString);
             _tracer.TrackTrace($"Sending new SharePoint files to migrate to service-bus '{sbConnectionProps.Endpoint}'.");
 
-            _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
-            _sbSender = _sbClient.CreateSender(_config.ServiceBusQueueName);
 
             // Create a BlobServiceClient object which will be used to create a container client
             _blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
+            _sharePointFileMigrator = new SharePointFileMigrator(config);
         }
 
         public async Task StartMigrateAllSites()
@@ -61,7 +63,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
             _tracer.TrackTrace($"Migrating site '{siteUrl}'...");
 
-            var crawler = new SiteCrawler(ctx, _tracer);
+            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
             crawler.SharePointFileFound += Crawler_SharePointFileFound;
             await crawler.Start();
         }
@@ -71,32 +73,7 @@ namespace SPO.ColdStorage.Migration.Engine
         /// </summary>
         private async void Crawler_SharePointFileFound(object? sender, SharePointFileInfoEventArgs e)
         {
-            bool needsMigrating = FileNeedsMigrating(e.SharePointFileInfo);
-            if (needsMigrating)
-            {
-                // Send msg to migrate file
-                var newFileMessage = new SharePointFileInfo 
-                { 
-                    FileRelativePath = e.SharePointFileInfo.FileRelativePath,
-                    SiteUrl = e.SharePointFileInfo.SiteUrl
-                };
-                var sbMsg = new ServiceBusMessage(System.Text.Json.JsonSerializer.Serialize(newFileMessage));
-                await _sbSender.SendMessageAsync(sbMsg);
-                _tracer.TrackTrace($"+migrate file '{e.SharePointFileInfo.FullUrl}'...");
-            }
-            else
-            {
-                _tracer.TrackTrace($"Ignoring file '{e.SharePointFileInfo.FullUrl}'...");
-            }
-        }
-
-        private bool FileNeedsMigrating(SharePointFileUpdateInfo sharePointFileInfo)
-        {
-            // Check existing blobs
-            var blobs = _containerClient?.GetBlobs(BlobTraits.Metadata, BlobStates.None, sharePointFileInfo.FileRelativePath);
-
-            var count = blobs?.Count() ?? 0;
-            return count == 0;
+            await _sharePointFileMigrator.MigrateSharePointFileIfNeeded(e.SharePointFileInfo, _containerClient!);
         }
     }
 }

@@ -1,16 +1,18 @@
 ﻿using Microsoft.SharePoint.Client;
-using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
-    internal class SiteCrawler
+    /// <summary>
+    /// Finds files in a SharePoint site collection
+    /// </summary>
+    internal class SiteListsAndLibrariesCrawler
     {
         private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
         public event EventHandler<SharePointFileInfoEventArgs>? SharePointFileFound;
 
-        public SiteCrawler(ClientContext clientContext, DebugTracer tracer)
+        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer)
         {
             this._spClient = clientContext;
             this._tracer = tracer;
@@ -34,7 +36,6 @@ namespace SPO.ColdStorage.Migration.Engine
         private async Task ProcessWeb(Web web)
         {
             _tracer.TrackTrace($"Reading site {web.Url}");
-
 
             _spClient.Load(web.Lists);
             _spClient.Load(web.Webs);

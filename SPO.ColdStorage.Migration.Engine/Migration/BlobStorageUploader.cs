@@ -26,8 +26,9 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             _tracer.TrackTrace($"Uploading '{msg.FileRelativePath}' to blob storage...");
             using (var fs = File.OpenRead(localTempFileName))
             {
-                var existing = _containerClient.GetBlobClient(msg.FileRelativePath);
-                if (await existing.ExistsAsync())
+                var fileRef = _containerClient.GetBlobClient(msg.FileRelativePath);
+                var fileExists = await fileRef.ExistsAsync();
+                if (fileExists)
                 {
                     byte[] hash;
                     using (var md5 = System.Security.Cryptography.MD5.Create())
@@ -37,10 +38,10 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                             hash = md5.ComputeHash(stream);
                         }
                     }
-                    var existingProps = await existing.GetPropertiesAsync();
+                    var existingProps = await fileRef.GetPropertiesAsync();
                     var match = existingProps.Value.ContentHash.SequenceEqual(hash);
                     if (!match)
-                        await existing.UploadAsync(fs, true);
+                        await fileRef.UploadAsync(fs, true);
                     else
                         _tracer.TrackTrace($"Skipping '{msg.FileRelativePath}' as destination hash is identical to local file.");
                 }

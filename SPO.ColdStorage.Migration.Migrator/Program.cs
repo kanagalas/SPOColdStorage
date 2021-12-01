@@ -7,7 +7,7 @@ using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 
 Console.WriteLine("SPO Cold Storage - Migrator Listener");
-
+Console.WriteLine("This app will listen for messages from service-bus and handle them when they arrive, untill you close this application.");
 
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())

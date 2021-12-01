@@ -12,12 +12,14 @@ namespace SPO.ColdStorage.Migration.Engine
         private ServiceBusProcessor _processor;
         private bool _run = true;
         private Dictionary<string, ClientContext> _siteContexts = new();
+        private SharePointFileMigrator _sharePointFileMigrator;
 
         public ServiceBusMigrationListener(Config config) : base(config)
         {
             _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
             _processor = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions());
-            _run = true;
+            _run = true; 
+            _sharePointFileMigrator = new SharePointFileMigrator(config);
         }
 
         public async Task ListenForFilesToMigrate()
@@ -59,7 +61,7 @@ namespace SPO.ColdStorage.Migration.Engine
             _run = false;
         }
 
-        // Handle received messages
+        // Handle received SB messages
         async Task MessageHandler(ProcessMessageEventArgs args)
         {
             string body = args.Message.Body.ToString();
@@ -67,7 +69,7 @@ namespace SPO.ColdStorage.Migration.Engine
             if (msg != null && msg.IsValid)
             {
                 _tracer.TrackTrace($"Received: {msg.FileRelativePath}");
-                await StartMigration(msg);
+                await StartMigrationWithCachedOrNewContext(msg);
 
                 // complete the message. messages is deleted from the queue. 
                 await args.CompleteMessageAsync(args.Message);
@@ -86,7 +88,7 @@ namespace SPO.ColdStorage.Migration.Engine
             return Task.CompletedTask;
         }
 
-        private async Task StartMigration(SharePointFileInfo msg)
+        private async Task StartMigrationWithCachedOrNewContext(SharePointFileInfo msg)
         {
             // Find/create SP context
             ClientContext ctx;
@@ -96,17 +98,8 @@ namespace SPO.ColdStorage.Migration.Engine
             }
             ctx = _siteContexts[msg.SiteUrl];
 
-            // Download from SP and copy to blob
-            var downloader = new SharePointFileDownloader(ctx, _config);
-            var tempFileName = await downloader.DownloadFileToTempDir(msg);
-
-            var searchIndexer = new SharePointFileSearchProcessor(_config);
-            await searchIndexer.ProcessFileContent(msg);
-
-            var blobUploader = new BlobStorageUploader(_config);
-            await blobUploader.UploadFileToAzureBlob(tempFileName, msg);
-
-            System.IO.File.Delete(tempFileName);
+            // Begin migration on common class
+            await _sharePointFileMigrator.StartMigrationFromSharePointToBlobStorage(msg, ctx);
         }
 
     }
