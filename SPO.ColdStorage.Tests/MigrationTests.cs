@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 namespace SPO.ColdStorage.Tests
 {
     [TestClass]
-    public class FileMigratorTests
+    public class MigrationTests
     {
-        private Config _config;
+        private Config? _config;
 
         [TestInitialize]
         public void Init()
@@ -28,17 +28,30 @@ namespace SPO.ColdStorage.Tests
         }
 
         [TestMethod]
-        public async Task MigrateTest()
+        public async Task FileMigratorTests()
         {
             var testMsg = new SharePointFileInfo 
             { 
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost", 
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
             };
-            var ctx = await AuthUtils.GetClientContext(_config, testMsg.SiteUrl);
+            var ctx = await AuthUtils.GetClientContext(_config!, testMsg.SiteUrl);
 
-            var m = new FileMigrator(ctx, _config);
+            var m = new FileMigrator(ctx, _config!);
             await m.MigrateSharePointFileToBlobStorage(testMsg);
+        }
+
+        [TestMethod]
+        public async Task FileContentProcessorTests()
+        {
+            var testMsg = new SharePointFileInfo
+            {
+                SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost",
+                FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
+            };
+
+            var m = new SharePointFileProcessor(_config!);
+            await m.ProcessFileContent(testMsg);
         }
     }
 }

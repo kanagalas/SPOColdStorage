@@ -37,6 +37,11 @@ namespace SPO.ColdStorage.Entities
             this.BaseServerAddress = config["BaseServerAddress"];
             this.KeyVaultUrl = config["KeyVaultUrl"];
             this.BlobContainerName = config["BlobContainerName"];
+
+            this.SearchServiceEndPoint = config["SearchServiceEndPoint"];
+            this.SearchServiceAdminApiKey = config["SearchServiceAdminApiKey"];
+            this.SearchServiceQueryApiKey = config["SearchServiceQueryApiKey"];
+            this.SearchIndexName = config["SearchIndexName"];
         }
 
         public string BaseServerAddress { get; set; }
@@ -46,6 +51,11 @@ namespace SPO.ColdStorage.Entities
         public string StorageConnectionString { get; set; }
         public string KeyVaultUrl { get; set; }
         public string BlobContainerName { get; set; }
+
+        public string SearchServiceEndPoint { get; set; }
+        public string SearchServiceAdminApiKey { get; set; }
+        public string SearchServiceQueryApiKey { get; set; }
+        public string SearchIndexName { get; set; }
 
         public AzureAdConfig AzureAdConfig { get; set; }
         public DevConfig DevConfig { get; set; }

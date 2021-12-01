@@ -23,7 +23,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             // Write to temp file
             var tempFileName = Path.GetTempPath().TrimEnd(@"\".ToCharArray()) + sharePointFile.FileRelativePath.Replace("/", @"\");
             var tempFileInfo = new FileInfo(tempFileName);
-            Directory.CreateDirectory(tempFileInfo.DirectoryName);
+            Directory.CreateDirectory(tempFileInfo.DirectoryName!);
 
             var spStreamResult = filetoDownload.OpenBinaryStream();
             await _context.ExecuteQueryAsync();

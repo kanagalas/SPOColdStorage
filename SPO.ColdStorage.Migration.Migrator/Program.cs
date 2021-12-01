@@ -1,4 +1,7 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿// dotnet user-secrets set "SearchServiceEndPoint" "" --project "SPO.ColdStorage.Migration.Migrator"
+// dotnet user-secrets set "SearchServiceAdminApiKey" "" --project "SPO.ColdStorage.Migration.Migrator"
+// dotnet user-secrets set "SearchServiceQueryApiKey" "" --project "SPO.ColdStorage.Migration.Migrator"
+
 using Microsoft.Extensions.Configuration;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
