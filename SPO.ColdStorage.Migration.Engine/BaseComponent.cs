@@ -13,11 +13,10 @@ namespace SPO.ColdStorage.Migration.Engine
         protected Config _config;
         protected DebugTracer _tracer;
 
-        public BaseComponent(Config config)
+        public BaseComponent(Config config, DebugTracer debugTracer)
         {
-
             _config = config ?? throw new ArgumentNullException(nameof(config));
-            _tracer = DebugTracer.ConsoleOnlyTracer();
+            _tracer = debugTracer;
         }
     }
 }

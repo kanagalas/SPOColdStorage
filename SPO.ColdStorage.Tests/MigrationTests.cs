@@ -43,7 +43,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task SharePointFileMigrationTests()
         {
-            var migrator = new SharePointFileMigrator(_config!);
+            var migrator = new SharePointFileMigrator(_config!, _tracer);
 
             var ctx = await AuthUtils.GetClientContext(_config!, _config!.DevConfig.DefaultSharePointSite);
 
@@ -80,6 +80,42 @@ namespace SPO.ColdStorage.Tests
             File.Delete(tempLocalFile);
         }
 
+        /// <summary>
+        /// Checks we don't migrate files that are already in az blob
+        /// </summary>
+        [TestMethod]
+        public async Task SharePointFileNeedsMigratingTests()
+        {
+            var migrator = new SharePointFileMigrator(_config!, _tracer);
+
+            var ctx = await AuthUtils.GetClientContext(_config!, _config!.DevConfig.DefaultSharePointSite);
+
+            // Upload a test file to SP
+            var targetList = ctx.Web.Lists.GetByTitle("Documents");
+
+            var fileTitle = $"unit-test file {DateTime.Now.Ticks}.txt";
+            await targetList.SaveNewFile(ctx, fileTitle, System.Text.Encoding.UTF8.GetBytes(FILE_CONTENTS));
+
+            // Discover new file
+            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
+            var allResults = await crawler.CrawlList(targetList);
+            var discoveredFile = allResults.Where(r => r.FileRelativePath.Contains(fileTitle)).FirstOrDefault();
+
+            // Check migration status
+            var blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
+
+            var needsMigratingBeforeMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            Assert.IsTrue(needsMigratingBeforeMigration);
+
+            // Migrate the file to az blob
+            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
+
+
+            var needsMigratingPostMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            Assert.IsFalse(needsMigratingPostMigration);
+        }
+
         [TestMethod]
         public async Task SharePointFileDownloaderTests()
         {
@@ -90,7 +126,7 @@ namespace SPO.ColdStorage.Tests
             };
             var ctx = await AuthUtils.GetClientContext(_config!, testMsg.SiteUrl);
 
-            var m = new SharePointFileDownloader(ctx, _config!);
+            var m = new SharePointFileDownloader(ctx, _config!, _tracer);
             await m.DownloadFileToTempDir(testMsg);
         }
 
@@ -103,7 +139,7 @@ namespace SPO.ColdStorage.Tests
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
             };
 
-            var m = new SharePointFileSearchProcessor(_config!);
+            var m = new SharePointFileSearchProcessor(_config!, _tracer);
             await m.ProcessFileContent(testMsg);
         }
 
@@ -121,7 +157,7 @@ namespace SPO.ColdStorage.Tests
             System.IO.File.WriteAllText(tempFileName, FILE_CONTENTS);
 
             // Upload - shouldn't exist in destination
-            var m = new BlobStorageUploader(_config!);
+            var m = new BlobStorageUploader(_config!, _tracer);
             await m.UploadFileToAzureBlob(tempFileName, testMsg);
 
             // Write same file again. Should also work.

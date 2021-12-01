@@ -1,10 +1,5 @@
 ﻿using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
@@ -16,7 +11,6 @@ namespace SPO.ColdStorage.Migration.Engine
     {
         private TelemetryClient? AppInsights { get; set; }
 
-
         #region Constructors
 
         private DebugTracer() : this(string.Empty, string.Empty)
@@ -26,6 +20,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             if (!string.IsNullOrEmpty(appInsightsKey))
             {
+                Console.WriteLine($"Telemetry: sending runtime data to Application Insights with instrumentation key '{appInsightsKey}'");
                 var configuration = TelemetryConfiguration.CreateDefault();
                 configuration.InstrumentationKey = appInsightsKey;
 
@@ -52,7 +47,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
         public void TrackTrace(string sayWut, Microsoft.ApplicationInsights.DataContracts.SeverityLevel severityLevel)
         {
-            Console.WriteLine(sayWut);
+            if (severityLevel != Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose)
+            {
+                Console.WriteLine(sayWut);
+            }
 
             if (AppInsights != null)
             {
@@ -63,41 +61,6 @@ namespace SPO.ColdStorage.Migration.Engine
         public void TrackTrace(string sayWut)
         {
             TrackTrace(sayWut, Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Information);
-        }
-
-        public void TrackEvent(AnalyticsEvent analyticsEvent, string context)
-        {
-            string desc = "unknown";
-            switch (analyticsEvent)
-            {
-                case AnalyticsEvent.Unknown:
-                    break;
-                case AnalyticsEvent.AzureAIQuery:
-                    desc = "Azure AI query";
-                    break;
-                default:
-                    break;
-            }
-
-            Console.WriteLine($"New '{desc}' event; context: '{context}'.");
-            if (AppInsights != null)
-            {
-                string eventName = Enum.GetName(typeof(AnalyticsEvent), analyticsEvent) ?? string.Empty;
-                if (string.IsNullOrEmpty(context))
-                {
-                    AppInsights.TrackEvent(eventName, new Dictionary<string, string>() { { "context", context } });
-                }
-                else
-                {
-                    AppInsights.TrackEvent(eventName);
-                }
-            }
-        }
-
-        public enum AnalyticsEvent
-        {
-            Unknown,
-            AzureAIQuery
         }
     }
 }

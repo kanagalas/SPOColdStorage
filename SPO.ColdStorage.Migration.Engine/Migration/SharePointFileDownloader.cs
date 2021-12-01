@@ -1,19 +1,21 @@
 ﻿using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine.Model;
-using System.IO;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
     public class SharePointFileDownloader : BaseComponent
     {
         private ClientContext _context;
-        public SharePointFileDownloader(ClientContext clientContext, Config config) :base(config)
+        public SharePointFileDownloader(ClientContext clientContext, Config config, DebugTracer debugTracer) :base(config, debugTracer)
         {
             _context = clientContext;
         }
 
-        public async Task<string> DownloadFileToTempDir(SharePointFileInfo sharePointFile) 
+        /// <summary>
+        /// Download file & return temp file-name + size
+        /// </summary>
+        public async Task<(string, long)> DownloadFileToTempDir(SharePointFileInfo sharePointFile) 
         {
             _context.Load(_context.Web);
             var filetoDownload = _context.Web.GetFileByServerRelativeUrl(sharePointFile.FileRelativePath);
@@ -23,12 +25,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             // Write to temp file
             var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
-            _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullUrl}'...");
+            _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
 
             var spStreamResult = filetoDownload.OpenBinaryStream();
             await _context.ExecuteQueryAsync();
 
-            var bytes = spStreamResult.Value.Length;
+            var fileSize = spStreamResult.Value.Length;
             using (var fs = spStreamResult.Value)
             {
                 using (var fileStream = System.IO.File.Create(tempFileName))
@@ -37,9 +39,9 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                     spStreamResult.Value.CopyTo(fileStream);
                 }
             }
-            _tracer.TrackTrace($"Wrote {bytes.ToString("N0")} bytes to '{tempFileName}'.");
+            _tracer.TrackTrace($"Wrote {fileSize.ToString("N0")} bytes to '{tempFileName}'.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
 
-            return tempFileName;
+            return (tempFileName, fileSize);
         }
 
         public static string GetTempFileNameAndCreateDir(SharePointFileInfo sharePointFile)

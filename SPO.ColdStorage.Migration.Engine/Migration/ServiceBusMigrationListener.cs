@@ -1,25 +1,26 @@
 ﻿using Azure.Messaging.ServiceBus;
-using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
+using System.Collections.Concurrent;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
+    /// <summary>
+    /// Listens for new service bus messages for files to migrate to az blob
+    /// </summary>
     public class ServiceBusMigrationListener : BaseComponent
     {
         private ServiceBusClient _sbClient;
         private ServiceBusProcessor _processor;
-        private bool _run = true;
-        private Dictionary<string, ClientContext> _siteContexts = new();
         private SharePointFileMigrator _sharePointFileMigrator;
+        private ConcurrentBag<string> cb = new();
 
-        public ServiceBusMigrationListener(Config config) : base(config)
+        public ServiceBusMigrationListener(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
             _processor = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions());
-            _run = true; 
-            _sharePointFileMigrator = new SharePointFileMigrator(config);
+            _sharePointFileMigrator = new SharePointFileMigrator(config, debugTracer);
         }
 
         public async Task ListenForFilesToMigrate()
@@ -38,15 +39,10 @@ namespace SPO.ColdStorage.Migration.Engine
                 // start processing 
                 await _processor.StartProcessingAsync();
 
-                while (_run)
+                while (true)
                 {
                     await Task.Delay(1000);
                 }
-
-                // stop processing 
-                Console.WriteLine("\nStopping the receiver...");
-                await _processor.StopProcessingAsync();
-                Console.WriteLine("Stopped receiving messages");
             }
             finally
             {
@@ -56,10 +52,6 @@ namespace SPO.ColdStorage.Migration.Engine
                 await _sbClient.DisposeAsync();
             }
         }
-        public void Stop()
-        {
-            _run = false;
-        }
 
         // Handle received SB messages
         async Task MessageHandler(ProcessMessageEventArgs args)
@@ -68,10 +60,12 @@ namespace SPO.ColdStorage.Migration.Engine
             var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileInfo>(body);
             if (msg != null && msg.IsValidInfo)
             {
-                _tracer.TrackTrace($"Received: {msg.FileRelativePath}");
-                await StartMigrationWithCachedOrNewContext(msg);
+                _tracer.TrackTrace($"Started migration for: {msg.FileRelativePath}");
 
-                // complete the message. messages is deleted from the queue. 
+                // Fire & forget on background thread 
+                _ = Task.Run(() => StartFileMigrationAsync(msg));
+
+                // Complete the message. messages is deleted from the queue. 
                 await args.CompleteMessageAsync(args.Message);
             }
             else
@@ -79,28 +73,55 @@ namespace SPO.ColdStorage.Migration.Engine
                 _tracer.TrackTrace($"Received unrecognised message: '{body}'. Sending to dead-letter queue.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                 await args.DeadLetterMessageAsync(args.Message);
             }
-
         }
+
         // Handle any errors when receiving SB messages
-        static Task ErrorHandler(ProcessErrorEventArgs args)
+        Task ErrorHandler(ProcessErrorEventArgs args)
         {
-            Console.WriteLine(args.Exception.ToString());
+            _tracer.TrackTrace(args.Exception.Message, Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+            _tracer.TrackException(args.Exception);
             return Task.CompletedTask;
         }
 
-        private async Task StartMigrationWithCachedOrNewContext(SharePointFileInfo msg)
+        private async Task StartFileMigrationAsync(SharePointFileInfo sharePointFileToMigrate)
         {
-            // Find/create SP context
-            ClientContext ctx;
-            if (!_siteContexts.ContainsKey(msg.SiteUrl))
+            string thisFileRef = sharePointFileToMigrate.FullUrl;
+            if (cb.Contains(thisFileRef))
             {
-                _siteContexts.Add(msg.SiteUrl, await AuthUtils.GetClientContext(_config, msg.SiteUrl));
+                _tracer.TrackTrace($"Already currently importing file '{sharePointFileToMigrate.FullUrl}'. Won't do it twice this session.", 
+                    Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                return;
             }
-            ctx = _siteContexts[msg.SiteUrl];
+
+            // Find/create SP context
+            var ctx = await AuthUtils.GetClientContext(_config, sharePointFileToMigrate.SiteUrl);
 
             // Begin migration on common class
-            await _sharePointFileMigrator.MigrateFromSharePointToBlobStorage(msg, ctx);
+            cb.Add(sharePointFileToMigrate.FileRelativePath);
+            long migratedFileSize = 0;
+            try
+            {
+                migratedFileSize = await _sharePointFileMigrator.MigrateFromSharePointToBlobStorage(sharePointFileToMigrate, ctx);
+            }
+            catch (Exception ex)
+            {
+                _tracer.TrackException(ex);
+                _tracer.TrackTrace($"Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullUrl}'", 
+                    Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+            }
+            finally 
+            {
+                // Import done/failed - remove from list of current imports
+                if (!cb.TryTake(out thisFileRef!))
+                {
+                    _tracer.TrackTrace($"Error removing file '{sharePointFileToMigrate.FullUrl}' from list of concurrent operations. Not sure what to do.",
+                        Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                }
+                else
+                {
+                    _tracer.TrackTrace($"File '{sharePointFileToMigrate.FullUrl}' ({migratedFileSize.ToString("N0")} bytes) migrated succesfully.");
+                }
+            }
         }
-
     }
 }

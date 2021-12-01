@@ -42,6 +42,7 @@ namespace SPO.ColdStorage.Entities
             this.SearchServiceAdminApiKey = config["SearchServiceAdminApiKey"];
             this.SearchServiceQueryApiKey = config["SearchServiceQueryApiKey"];
             this.SearchIndexName = config["SearchIndexName"];
+            this.AppInsightsInstrumentationKey = config["AppInsightsInstrumentationKey"];
         }
 
         public string BaseServerAddress { get; set; }
@@ -56,7 +57,9 @@ namespace SPO.ColdStorage.Entities
         public string SearchServiceAdminApiKey { get; set; }
         public string SearchServiceQueryApiKey { get; set; }
         public string SearchIndexName { get; set; }
+        public string AppInsightsInstrumentationKey { get; set; }
 
+        public bool HaveAppInsightsConfigured => !string.IsNullOrEmpty(AppInsightsInstrumentationKey);
         public AzureAdConfig AzureAdConfig { get; set; }
         public DevConfig DevConfig { get; set; }
     }

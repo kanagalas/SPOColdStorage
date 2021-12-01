@@ -18,7 +18,7 @@ namespace SPO.ColdStorage.Migration.Engine
         private BlobContainerClient? _containerClient;
         private SharePointFileMigrator _sharePointFileMigrator;
 
-        public SharePointContentIndexer(Config config) :base(config)
+        public SharePointContentIndexer(Config config, DebugTracer debugTracer) :base(config, debugTracer)
         {
             var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ServiceBusConnectionString);
             _tracer.TrackTrace($"Sending new SharePoint files to migrate to service-bus '{sbConnectionProps.Endpoint}'.");
@@ -26,7 +26,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
             // Create a BlobServiceClient object which will be used to create a container client
             _blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
-            _sharePointFileMigrator = new SharePointFileMigrator(config);
+            _sharePointFileMigrator = new SharePointFileMigrator(config, _tracer);
         }
 
         public async Task StartMigrateAllSites()
@@ -61,7 +61,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             var ctx = await AuthUtils.GetClientContext(_config, siteUrl);
 
-            _tracer.TrackTrace($"Migrating site '{siteUrl}'...");
+            _tracer.TrackTrace($"Scanning site '{siteUrl}'...");
 
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
             crawler.SharePointFileFound += Crawler_SharePointFileFound;
@@ -73,7 +73,7 @@ namespace SPO.ColdStorage.Migration.Engine
         /// </summary>
         private async void Crawler_SharePointFileFound(object? sender, SharePointFileInfoEventArgs e)
         {
-            await _sharePointFileMigrator.MigrateSharePointFileIfNeeded(e.SharePointFileInfo, _containerClient!);
+            await _sharePointFileMigrator.QueueSharePointFileMigrationIfNeeded(e.SharePointFileInfo, _containerClient!);
         }
     }
 }

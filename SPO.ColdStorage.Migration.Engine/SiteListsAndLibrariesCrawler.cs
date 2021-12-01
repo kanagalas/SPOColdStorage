@@ -35,8 +35,6 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private async Task ProcessWeb(Web web)
         {
-            _tracer.TrackTrace($"Reading site {web.Url}");
-
             _spClient.Load(web.Lists);
             _spClient.Load(web.Webs);
             await _spClient.ExecuteQueryAsync();
@@ -47,10 +45,6 @@ namespace SPO.ColdStorage.Migration.Engine
                 if (!list.Hidden)
                 {
                     await CrawlList(list);
-                }
-                else
-                {
-                    _tracer.TrackTrace($"Ignoring hidden list {list.RootFolder.ServerRelativeUrl}");
                 }
             }
         }
@@ -83,8 +77,6 @@ namespace SPO.ColdStorage.Migration.Engine
                 if (foundFileInfo != null)
                     results.Add(foundFileInfo!);
             }
-
-            _tracer.TrackTrace($"Found {results.Count} files to migrate in list: {list.RootFolder.ServerRelativeUrl}");
 
             return results;
         }

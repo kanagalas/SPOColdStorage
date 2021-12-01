@@ -10,7 +10,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 {
     public class SharePointFileSearchProcessor : BaseComponent
     {
-        public SharePointFileSearchProcessor(Config config) : base(config)
+        public SharePointFileSearchProcessor(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
         }
 
@@ -22,7 +22,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             CreateOrUpdateIndex(_config.SearchIndexName, indexClient);
 
             var searchClient = indexClient.GetSearchClient(_config.SearchIndexName);
-            _tracer.TrackTrace($"Uploading to search service file info for {sharePointFileInfo.FullUrl}");
+            _tracer.TrackTrace($"Uploading to search service file info for {sharePointFileInfo.FullUrl}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
             IndexDocumentsBatch<FileSearchModel> batch = IndexDocumentsBatch.Create(
                 IndexDocumentsAction.Upload(new FileSearchModel(sharePointFileInfo))
             );

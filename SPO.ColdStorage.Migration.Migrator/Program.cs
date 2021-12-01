@@ -2,22 +2,23 @@
 // dotnet user-secrets set "SearchServiceAdminApiKey" "" --project "SPO.ColdStorage.Migration.Migrator"
 // dotnet user-secrets set "SearchServiceQueryApiKey" "" --project "SPO.ColdStorage.Migration.Migrator"
 
-using Microsoft.Extensions.Configuration;
-using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
+using SPO.ColdStorage.Migration.Engine.Utils;
 
 Console.WriteLine("SPO Cold Storage - Migrator Listener");
 Console.WriteLine("This app will listen for messages from service-bus and handle them when they arrive, untill you close this application.");
 
-var builder = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddUserSecrets(System.Reflection.Assembly.GetExecutingAssembly())
-    .AddEnvironmentVariables()
-    .AddJsonFile("appsettings.json", true);
 
+var config = ConsoleUtils.GetConfigurationBuilder();
 
-var config = builder.Build();
-var allConfig = new Config(config);
+// Send to application insights or just the stdout?
+DebugTracer tracer;
+if (config.HaveAppInsightsConfigured)
+{
+    tracer = new DebugTracer(config.AppInsightsInstrumentationKey, "Migrator");
+}
+else
+    tracer = DebugTracer.ConsoleOnlyTracer();
 
-var listener = new ServiceBusMigrationListener(allConfig);
+var listener = new ServiceBusMigrationListener(config, tracer);
 await listener.ListenForFilesToMigrate();
