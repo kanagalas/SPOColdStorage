@@ -4,6 +4,7 @@ using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
+using System;
 using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Tests
@@ -31,7 +32,7 @@ namespace SPO.ColdStorage.Tests
         #endregion
 
         [TestMethod]
-        public async Task FileMigratorTests()
+        public async Task SharePointFileDownloaderTests()
         {
             var testMsg = new SharePointFileInfo 
             { 
@@ -45,7 +46,7 @@ namespace SPO.ColdStorage.Tests
         }
 
         [TestMethod]
-        public async Task FileContentProcessorTests()
+        public async Task SharePointFileSearchProcessorTests()
         {
             var testMsg = new SharePointFileInfo
             {
@@ -57,21 +58,30 @@ namespace SPO.ColdStorage.Tests
             await m.ProcessFileContent(testMsg);
         }
 
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         [TestMethod]
-        public async Task FileUploadTests()
+        public async Task BlobStorageFileUploadTests()
         {
             var testMsg = new SharePointFileInfo
             {
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost",
-                FileRelativePath = "/sites/MigrationHost/Unit tests/textfile.txt"
+                FileRelativePath = $"/sites/MigrationHost/Unit tests/textfile{DateTime.Now.Ticks}.txt"
             };
             const string FILE_CONTENTS = "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor";
 
-            // Write a fake file
+            // Write a fake file 
             string tempFileName = SharePointFileDownloader.GetTempFileNameAndCreateDir(testMsg);
             System.IO.File.WriteAllText(tempFileName, FILE_CONTENTS);
 
-            var m = new BlobUploader(_config!);
+            // Upload - shouldn't exist in destination
+            var m = new BlobStorageUploader(_config!);
+            await m.UploadFileToAzureBlob(tempFileName, testMsg);
+
+            // Write same file again. Should also work.
             await m.UploadFileToAzureBlob(tempFileName, testMsg);
         }
     }

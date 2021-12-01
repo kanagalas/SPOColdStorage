@@ -6,21 +6,21 @@ using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
-    public class MigrationListener : BaseComponent
+    public class ServiceBusMigrationListener : BaseComponent
     {
         private ServiceBusClient _sbClient;
         private ServiceBusProcessor _processor;
         private bool _run = true;
         private Dictionary<string, ClientContext> _siteContexts = new();
 
-        public MigrationListener(Config config) : base(config)
+        public ServiceBusMigrationListener(Config config) : base(config)
         {
             _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
             _processor = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions());
             _run = true;
         }
 
-        public async Task Begin()
+        public async Task ListenForFilesToMigrate()
         {
             try
             {
@@ -29,6 +29,9 @@ namespace SPO.ColdStorage.Migration.Engine
 
                 // add handler to process any errors
                 _processor.ProcessErrorAsync += ErrorHandler;
+
+                var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ServiceBusConnectionString);
+                _tracer.TrackTrace($"Listening on service-bus '{sbConnectionProps.Endpoint}' for new files to migrate.");
 
                 // start processing 
                 await _processor.StartProcessingAsync();
@@ -56,7 +59,7 @@ namespace SPO.ColdStorage.Migration.Engine
             _run = false;
         }
 
-        // handle received messages
+        // Handle received messages
         async Task MessageHandler(ProcessMessageEventArgs args)
         {
             string body = args.Message.Body.ToString();
@@ -64,18 +67,26 @@ namespace SPO.ColdStorage.Migration.Engine
             if (msg != null && msg.IsValid)
             {
                 _tracer.TrackTrace($"Received: {msg.FileRelativePath}");
-                await ProcessFileMessage(msg);
+                await StartMigration(msg);
+
+                // complete the message. messages is deleted from the queue. 
+                await args.CompleteMessageAsync(args.Message);
             }
             else
             {
-                _tracer.TrackTrace($"Received unrecognised message: '{body}'", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                _tracer.TrackTrace($"Received unrecognised message: '{body}'. Sending to dead-letter queue.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                await args.DeadLetterMessageAsync(args.Message);
             }
 
-            // complete the message. messages is deleted from the queue. 
-            await args.CompleteMessageAsync(args.Message);
+        }
+        // Handle any errors when receiving SB messages
+        static Task ErrorHandler(ProcessErrorEventArgs args)
+        {
+            Console.WriteLine(args.Exception.ToString());
+            return Task.CompletedTask;
         }
 
-        private async Task ProcessFileMessage(SharePointFileInfo msg)
+        private async Task StartMigration(SharePointFileInfo msg)
         {
             // Find/create SP context
             ClientContext ctx;
@@ -86,20 +97,17 @@ namespace SPO.ColdStorage.Migration.Engine
             ctx = _siteContexts[msg.SiteUrl];
 
             // Download from SP and copy to blob
-            var m = new SharePointFileDownloader(ctx, _config);
-            var tempFileName = await m.DownloadFileToTempDir(msg);
+            var downloader = new SharePointFileDownloader(ctx, _config);
+            var tempFileName = await downloader.DownloadFileToTempDir(msg);
 
-            var blobUploader = new BlobUploader(_config);
+            var searchIndexer = new SharePointFileSearchProcessor(_config);
+            await searchIndexer.ProcessFileContent(msg);
+
+            var blobUploader = new BlobStorageUploader(_config);
             await blobUploader.UploadFileToAzureBlob(tempFileName, msg);
 
             System.IO.File.Delete(tempFileName);
         }
 
-        // Handle any errors when receiving SB messages
-        static Task ErrorHandler(ProcessErrorEventArgs args)
-        {
-            Console.WriteLine(args.Exception.ToString());
-            return Task.CompletedTask;
-        }
     }
 }

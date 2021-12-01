@@ -44,5 +44,19 @@ namespace SPO.ColdStorage.Tests
 
             Assert.IsTrue(searchObj3.FoldersDeep == 0);
         }
+
+        [TestMethod]
+        public void SharePointFileInfoTests()
+        {
+            var emptyMsg1 = new SharePointFileInfo { };
+            Assert.IsFalse(emptyMsg1.IsValid);
+
+            var halfEmptyMsg = new SharePointFileInfo { FileRelativePath = "/whatever" };
+            Assert.IsFalse(halfEmptyMsg.IsValid);
+
+
+            var legitMsg = new SharePointFileInfo { FileRelativePath = "/whatever", SiteUrl = "https://m365x352268.sharepoint.com" };
+            Assert.IsTrue(legitMsg.IsValid);
+        }
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 
-Console.WriteLine("Migrator");
+Console.WriteLine("SPO Cold Storage - Migrator Listener");
 
 
 var builder = new ConfigurationBuilder()
@@ -19,5 +19,5 @@ var builder = new ConfigurationBuilder()
 var config = builder.Build();
 var allConfig = new Config(config);
 
-var listener = new MigrationListener(allConfig);
-await listener.Begin();
+var listener = new ServiceBusMigrationListener(allConfig);
+await listener.ListenForFilesToMigrate();

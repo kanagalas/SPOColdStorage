@@ -14,7 +14,7 @@ using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 using System.Reflection;
 
-Console.WriteLine("Indexer");
+Console.WriteLine("SPO Cold Storage - SharePoint Indexer");
 
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -33,7 +33,7 @@ using (var db = new ColdStorageDbContext(allConfig.SQLConnectionString))
 
 // Start discovery
 var discovery = new SharePointContentIndexer(allConfig);
-await discovery.StartMigrateNeededFiles();
+await discovery.StartMigrateAllSites();
 
 
 Console.WriteLine("Done");

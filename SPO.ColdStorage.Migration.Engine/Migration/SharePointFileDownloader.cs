@@ -23,10 +23,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             // Write to temp file
             var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
+            _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullUrl}'...");
+
             var spStreamResult = filetoDownload.OpenBinaryStream();
             await _context.ExecuteQueryAsync();
 
-
+            var bytes = spStreamResult.Value.Length;
             using (var fs = spStreamResult.Value)
             {
                 using (var fileStream = System.IO.File.Create(tempFileName))
@@ -35,6 +37,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                     spStreamResult.Value.CopyTo(fileStream);
                 }
             }
+            _tracer.TrackTrace($"Wrote {bytes.ToString("N0")} bytes to '{tempFileName}'.");
 
             return tempFileName;
         }

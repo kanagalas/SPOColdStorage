@@ -121,7 +121,8 @@ namespace SPO.ColdStorage.Migration.Engine
                 return new SharePointFileUpdateInfo
                 {
                     FileRelativePath = url,
-                    LastModified = dt
+                    LastModified = dt,
+                    SiteUrl = _spClient.Url
                 };
             }
             else

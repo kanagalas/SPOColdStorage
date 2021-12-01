@@ -22,7 +22,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             CreateOrUpdateIndex(_config.SearchIndexName, indexClient);
 
             var searchClient = indexClient.GetSearchClient(_config.SearchIndexName);
-
+            _tracer.TrackTrace($"Uploading to search service file info for {sharePointFileInfo.FullUrl}");
             IndexDocumentsBatch<FileSearchModel> batch = IndexDocumentsBatch.Create(
                 IndexDocumentsAction.Upload(new FileSearchModel(sharePointFileInfo))
             );

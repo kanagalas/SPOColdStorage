@@ -17,6 +17,8 @@ namespace SPO.ColdStorage.Migration.Engine
 
         public SharePointContentIndexer(Config config) :base(config)
         {
+            var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ServiceBusConnectionString);
+            _tracer.TrackTrace($"Sending new SharePoint files to migrate to service-bus '{sbConnectionProps.Endpoint}'.");
 
             _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
             _sbSender = _sbClient.CreateSender(_config.ServiceBusQueueName);
@@ -25,12 +27,13 @@ namespace SPO.ColdStorage.Migration.Engine
             _blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
         }
 
-        public async Task StartMigrateNeededFiles()
+        public async Task StartMigrateAllSites()
         {
             // Create the container and return a container client object
             this._containerClient = _blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
 
-            await _containerClient.CreateIfNotExistsAsync(Azure.Storage.Blobs.Models.PublicAccessType.BlobContainer);
+            // Create container with no access to public
+            await _containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
 
             using (var db = new ColdStorageDbContext(this._config.SQLConnectionString))
             {
@@ -39,20 +42,20 @@ namespace SPO.ColdStorage.Migration.Engine
                 {
                     if (!m.Started.HasValue)
                     {
-                        await StartMigration(m, db);
+                        await StartMigration(m);
                     }
                 }
             }
         }
 
-        async Task StartMigration(Entities.DBEntities.SharePointMigration m, ColdStorageDbContext db)
+        async Task StartMigration(Entities.DBEntities.SharePointMigration m)
         {
             foreach (var siteId in m.TargetSites)
             {
-                await StartMigration(siteId.RootURL, db);
+                await StartSiteMigration(siteId.RootURL);
             }
         }
-        async Task StartMigration(string siteUrl, ColdStorageDbContext db)
+        async Task StartSiteMigration(string siteUrl)
         {
             var ctx = await AuthUtils.GetClientContext(_config, siteUrl);
 
@@ -63,6 +66,9 @@ namespace SPO.ColdStorage.Migration.Engine
             await crawler.Start();
         }
 
+        /// <summary>
+        /// Crawler found a relevant file
+        /// </summary>
         private async void Crawler_SharePointFileFound(object? sender, SharePointFileInfoEventArgs e)
         {
             bool needsMigrating = FileNeedsMigrating(e.SharePointFileInfo);
