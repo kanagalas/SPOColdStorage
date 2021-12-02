@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
+using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
@@ -23,7 +24,7 @@ namespace SPO.ColdStorage.Tests
         private DebugTracer _tracer = DebugTracer.ConsoleOnlyTracer();
 
         [TestInitialize]
-        public void Init()
+        public async Task Init()
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(System.IO.Directory.GetCurrentDirectory())
@@ -34,6 +35,12 @@ namespace SPO.ColdStorage.Tests
 
             var config = builder.Build();
             _config = new Config(config);
+
+            // Init DB
+            using (var db = new SPOColdStorageDbContext(_config.SQLConnectionString))
+            {
+                await DbInitializer.Init(db, _config.DevConfig);
+            }
         }
         #endregion
 
@@ -75,9 +82,9 @@ namespace SPO.ColdStorage.Tests
             
 
             // Check az blob file contents matches original data
-            var azDownloadedFile = File.ReadAllText(tempLocalFile);
+            var azDownloadedFile = System.IO.File.ReadAllText(tempLocalFile);
             Assert.AreEqual(azDownloadedFile, FILE_CONTENTS);
-            File.Delete(tempLocalFile);
+            System.IO.File.Delete(tempLocalFile);
         }
 
         /// <summary>
@@ -92,28 +99,45 @@ namespace SPO.ColdStorage.Tests
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");
-
             var fileTitle = $"unit-test file {DateTime.Now.Ticks}.txt";
             await targetList.SaveNewFile(ctx, fileTitle, System.Text.Encoding.UTF8.GetBytes(FILE_CONTENTS));
 
-            // Discover new file
-            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
-            var allResults = await crawler.CrawlList(targetList);
-            var discoveredFile = allResults.Where(r => r.FileRelativePath.Contains(fileTitle)).FirstOrDefault();
-
-            // Check migration status
+            // Prepare for file migration
+            var discoveredFile = await GetFromIndex(ctx, fileTitle, targetList);
             var blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
 
+            // Before migration: SharePointFileNeedsMigrating should be true
             var needsMigratingBeforeMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
             Assert.IsTrue(needsMigratingBeforeMigration);
 
             // Migrate the file to az blob
             await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
 
-
+            // Now SharePointFileNeedsMigrating should be false
             var needsMigratingPostMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
             Assert.IsFalse(needsMigratingPostMigration);
+
+            // Update file with new content and recrawl
+            await targetList.SaveNewFile(ctx, fileTitle, System.Text.Encoding.UTF8.GetBytes(FILE_CONTENTS + " + extra data"));
+            discoveredFile = await GetFromIndex(ctx, fileTitle, targetList);
+
+            // Now the file's been updated, it should need a new migration
+            var needsMigratingPostEdit = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            Assert.IsTrue(needsMigratingPostEdit);
+
+            // Migrate again edited file & check status one last time
+            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
+            needsMigratingPostMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            Assert.IsFalse(needsMigratingPostMigration);
+        }
+
+        async Task<SharePointFileUpdateInfo?> GetFromIndex(ClientContext ctx, string fileTitle, List targetList)
+        {
+            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
+            var allResults = await crawler.CrawlList(targetList);
+            var discoveredFile = allResults.Where(r => r.FileRelativePath.Contains(fileTitle)).FirstOrDefault();
+            return discoveredFile;
         }
 
         [TestMethod]

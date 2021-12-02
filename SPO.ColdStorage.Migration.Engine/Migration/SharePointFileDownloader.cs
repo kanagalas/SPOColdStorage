@@ -4,6 +4,9 @@ using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
+    /// <summary>
+    /// Downloads files from SharePoint to local file-system
+    /// </summary>
     public class SharePointFileDownloader : BaseComponent
     {
         private ClientContext _context;

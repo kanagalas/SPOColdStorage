@@ -14,7 +14,7 @@ namespace SPO.ColdStorage.Entities
         /// Creates new tenant DB if needed
         /// </summary>
         /// <returns>If DB was created</returns>
-        public async static Task<bool> Init(ColdStorageDbContext context, DevConfig config)
+        public async static Task<bool> Init(SPOColdStorageDbContext context, DevConfig config)
         {
             context.Database.EnsureCreated();
             if (context.Migrations.Any() || config == null)

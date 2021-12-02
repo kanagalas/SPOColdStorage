@@ -37,7 +37,7 @@ namespace SPO.ColdStorage.Migration.Engine
             // Create container with no access to public
             await _containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
 
-            using (var db = new ColdStorageDbContext(this._config.SQLConnectionString))
+            using (var db = new SPOColdStorageDbContext(this._config.SQLConnectionString))
             {
                 var migrations = await db.Migrations.Include(m => m.TargetSites).ToListAsync();
                 foreach (var m in migrations)

@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using Microsoft.SharePoint.Client;
+using System.Text.Json.Serialization;
 
 namespace SPO.ColdStorage.Migration.Engine.Model
 {
@@ -23,7 +24,10 @@ namespace SPO.ColdStorage.Migration.Engine.Model
 
     public class SharePointFileUpdateInfo : SharePointFileInfo
     {
+
         public DateTime LastModified { get; set; } = DateTime.MinValue;
+
+        public override bool IsValidInfo => base.IsValidInfo && this.LastModified > DateTime.MinValue;
     }
 
     public class SharePointFileInfoEventArgs : EventArgs

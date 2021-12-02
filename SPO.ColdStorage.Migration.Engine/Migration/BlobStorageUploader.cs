@@ -4,6 +4,9 @@ using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
+    /// <summary>
+    /// Uploads files from local file-system to Azure blob
+    /// </summary>
     public class BlobStorageUploader : BaseComponent
     {
         private BlobServiceClient _blobServiceClient;

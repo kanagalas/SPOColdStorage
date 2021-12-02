@@ -9,7 +9,7 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
 {
     public static class SharePointUtils
     {
-        public static async Task SaveNewFile(this List targetList, ClientContext ctx, string fileName, byte[] contents)
+        public static async Task<ListItem> SaveNewFile(this List targetList, ClientContext ctx, string fileName, byte[] contents)
         {
             var fileCreationInfo = new FileCreationInformation
             {
@@ -20,8 +20,15 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
             var uploadFile = targetList.RootFolder.Files.Add(fileCreationInfo);
             ctx.Load(uploadFile);
             await ctx.ExecuteQueryAsync();
+
+            // Get new file info
+            ctx.Load(uploadFile, i => i.UniqueId);
+            var uploadedItem = targetList.GetItemByUniqueId(uploadFile.UniqueId);
+            ctx.Load(uploadedItem);
+
+            await ctx.ExecuteQueryAsync();
+
+            return uploadedItem;
         }
-
-
     }
 }
