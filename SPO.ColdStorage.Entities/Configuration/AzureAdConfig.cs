@@ -12,8 +12,13 @@ namespace SPO.ColdStorage.Entities.Configuration
         {
         }
 
-        public string? Secret { get; set; }
-        public string? ClientID { get; set; }
-        public string? TenantId { get; set; }
+        [ConfigValue]
+        public string? Secret { get; set; } = string.Empty;
+
+        [ConfigValue]
+        public string? ClientID { get; set; } = string.Empty;
+
+        [ConfigValue]
+        public string? TenantId { get; set; } = string.Empty;
     }
 }

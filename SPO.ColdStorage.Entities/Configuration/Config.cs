@@ -31,7 +31,7 @@
         [ConfigValue]
         public string SearchIndexName { get; set; } = string.Empty;
 
-        [ConfigValue]
+        [ConfigValue(true)]
         public string AppInsightsInstrumentationKey { get; set; } = string.Empty;
 
         public bool HaveAppInsightsConfigured => !string.IsNullOrEmpty(AppInsightsInstrumentationKey);

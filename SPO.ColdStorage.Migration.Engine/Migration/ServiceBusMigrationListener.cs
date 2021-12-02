@@ -1,4 +1,6 @@
 ﻿using Azure.Messaging.ServiceBus;
+using Microsoft.EntityFrameworkCore;
+using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
@@ -27,6 +29,12 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             try
             {
+                // Start an initial DB session to avoid threads configuring context
+                using (var db = new SPOColdStorageDbContext(_config.ConnectionStrings.SQLConnectionString))
+                {
+                    await db.Migrations.CountAsync();
+                }
+
                 // add handler to process messages
                 _processor.ProcessMessageAsync += MessageHandler;
 
@@ -46,8 +54,7 @@ namespace SPO.ColdStorage.Migration.Engine
             }
             finally
             {
-                // Calling DisposeAsync on client types is required to ensure that network
-                // resources and other unmanaged objects are properly cleaned up.
+                // Calling DisposeAsync on client types is required to ensure that network resources and other unmanaged objects are properly cleaned up.
                 await _processor.DisposeAsync();
                 await _sbClient.DisposeAsync();
             }
