@@ -3,13 +3,15 @@ using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
 using SPO.ColdStorage.Migration.Engine.Model;
+using System;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
     /// <summary>
-    /// The top-level file migration logic
+    /// The top-level file migration logic for both indexer and migrator
     /// </summary>
     public class SharePointFileMigrator : BaseComponent, IDisposable
     {
@@ -18,9 +20,9 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         private SPOColdStorageDbContext _db;
         public SharePointFileMigrator(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
-            _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
+            _sbClient = new ServiceBusClient(_config.ConnectionStrings.ServiceBus);
             _sbSender = _sbClient.CreateSender(_config.ServiceBusQueueName);
-            _db = new SPOColdStorageDbContext(_config.SQLConnectionString);
+            _db = new SPOColdStorageDbContext(_config.ConnectionStrings.SQLConnectionString);
         }
 
         /// <summary>

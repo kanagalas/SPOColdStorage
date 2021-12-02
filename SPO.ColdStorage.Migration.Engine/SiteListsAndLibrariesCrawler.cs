@@ -10,12 +10,17 @@ namespace SPO.ColdStorage.Migration.Engine
     {
         private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
-        public event EventHandler<SharePointFileInfoEventArgs>? SharePointFileFound;
+        public event Func<SharePointFileVersionInfo, Task>? _callback;
 
-        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer)
+        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer) : this(clientContext, tracer, null)
+        {
+        }
+
+        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer, Func<SharePointFileVersionInfo, Task>? callback)
         {
             this._spClient = clientContext;
             this._tracer = tracer;
+            this._callback = callback;  
         }
 
         public async Task CrawlContextWeb()
@@ -97,11 +102,10 @@ namespace SPO.ColdStorage.Migration.Engine
                     if (docListItem.File.Exists)
                     {
                         var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl);
-                        var args = new SharePointFileInfoEventArgs
+                        if (_callback != null)
                         {
-                            SharePointFileInfo = foundFileInfo
-                        };
-                        this.SharePointFileFound?.Invoke(this, args);
+                            await this._callback(foundFileInfo);
+                        }
 
                         return foundFileInfo;
                     }
@@ -124,11 +128,10 @@ namespace SPO.ColdStorage.Migration.Engine
             foreach (var attachment in item.AttachmentFiles)
             {
                 var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl);
-                var args = new SharePointFileInfoEventArgs
+                if (_callback != null)
                 {
-                    SharePointFileInfo = foundFileInfo
-                };
-                this.SharePointFileFound?.Invoke(this, args);
+                    await this._callback(foundFileInfo);
+                }
                 attachmentsResults.Add(foundFileInfo);
             }
 

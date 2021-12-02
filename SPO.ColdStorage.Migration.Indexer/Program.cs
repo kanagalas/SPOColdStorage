@@ -28,7 +28,7 @@ else
 
 
 // Init DB
-using (var db = new SPOColdStorageDbContext(config.SQLConnectionString))
+using (var db = new SPOColdStorageDbContext(config.ConnectionStrings.SQLConnectionString))
 {
     await DbInitializer.Init(db, config.DevConfig);
 }

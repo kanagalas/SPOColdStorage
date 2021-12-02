@@ -4,6 +4,7 @@ using Azure.Storage.Blobs.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
 
@@ -20,12 +21,12 @@ namespace SPO.ColdStorage.Migration.Engine
 
         public SharePointContentIndexer(Config config, DebugTracer debugTracer) :base(config, debugTracer)
         {
-            var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ServiceBusConnectionString);
+            var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ConnectionStrings.ServiceBus);
             _tracer.TrackTrace($"Sending new SharePoint files to migrate to service-bus '{sbConnectionProps.Endpoint}'.");
 
 
             // Create a BlobServiceClient object which will be used to create a container client
-            _blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
+            _blobServiceClient = new BlobServiceClient(_config.ConnectionStrings.Storage);
             _sharePointFileMigrator = new SharePointFileMigrator(config, _tracer);
         }
 
@@ -37,7 +38,7 @@ namespace SPO.ColdStorage.Migration.Engine
             // Create container with no access to public
             await _containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
 
-            using (var db = new SPOColdStorageDbContext(this._config.SQLConnectionString))
+            using (var db = new SPOColdStorageDbContext(this._config.ConnectionStrings.SQLConnectionString))
             {
                 var migrations = await db.Migrations.Include(m => m.TargetSites).ToListAsync();
                 foreach (var m in migrations)
@@ -63,17 +64,16 @@ namespace SPO.ColdStorage.Migration.Engine
 
             _tracer.TrackTrace($"Scanning site '{siteUrl}'...");
 
-            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
-            crawler.SharePointFileFound += Crawler_SharePointFileFound;
+            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound);
             await crawler.CrawlContextWeb();
         }
 
         /// <summary>
         /// Crawler found a relevant file
         /// </summary>
-        private async void Crawler_SharePointFileFound(object? sender, SharePointFileInfoEventArgs e)
+        private async Task Crawler_SharePointFileFound(SharePointFileVersionInfo foundFileInfo)
         {
-            await _sharePointFileMigrator.QueueSharePointFileMigrationIfNeeded(e.SharePointFileInfo, _containerClient!);
+            await _sharePointFileMigrator.QueueSharePointFileMigrationIfNeeded(foundFileInfo, _containerClient!);
         }
     }
 }

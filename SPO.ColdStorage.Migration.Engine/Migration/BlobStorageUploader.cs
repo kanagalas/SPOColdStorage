@@ -1,5 +1,5 @@
 ﻿using Azure.Storage.Blobs;
-using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Model;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
@@ -14,7 +14,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         public BlobStorageUploader(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             // Create a BlobServiceClient object which will be used to create a container client
-            _blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
+            _blobServiceClient = new BlobServiceClient(_config.ConnectionStrings.Storage);
         }
 
 

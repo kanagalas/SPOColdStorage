@@ -1,9 +1,5 @@
-﻿using SPO.ColdStorage.Entities.DBEntities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SPO.ColdStorage.Entities.Configuration;
+using SPO.ColdStorage.Entities.DBEntities;
 
 namespace SPO.ColdStorage.Entities
 {

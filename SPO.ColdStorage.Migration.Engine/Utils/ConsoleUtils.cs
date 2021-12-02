@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
-using SPO.ColdStorage.Entities;
-using System.Reflection;
+using SPO.ColdStorage.Entities.Configuration;
 
 namespace SPO.ColdStorage.Migration.Engine.Utils
 {

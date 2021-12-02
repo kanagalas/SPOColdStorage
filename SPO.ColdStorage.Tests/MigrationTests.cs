@@ -3,12 +3,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
 using SPO.ColdStorage.Migration.Engine.Utils;
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -37,9 +37,9 @@ namespace SPO.ColdStorage.Tests
             _config = new Config(config);
 
             // Init DB
-            using (var db = new SPOColdStorageDbContext(_config.SQLConnectionString))
+            using (var db = new SPOColdStorageDbContext(_config!.ConnectionStrings!.SQLConnectionString!))
             {
-                await DbInitializer.Init(db, _config.DevConfig);
+                await DbInitializer.Init(db, _config.DevConfig!);
             }
         }
         #endregion
@@ -74,7 +74,7 @@ namespace SPO.ColdStorage.Tests
 
             // Download file again from az blob
             var tempLocalFile = SharePointFileDownloader.GetTempFileNameAndCreateDir(discoveredFile);
-            var blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
+            var blobServiceClient = new BlobServiceClient(_config.ConnectionStrings.Storage);
             var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
             var blobClient = containerClient.GetBlobClient(discoveredFile.FileRelativePath);
 
@@ -104,7 +104,7 @@ namespace SPO.ColdStorage.Tests
 
             // Prepare for file migration
             var discoveredFile = await GetFromIndex(ctx, fileTitle, targetList);
-            var blobServiceClient = new BlobServiceClient(_config.StorageConnectionString);
+            var blobServiceClient = new BlobServiceClient(_config.ConnectionStrings.Storage);
             var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
 
             // Before migration: SharePointFileNeedsMigrating should be true

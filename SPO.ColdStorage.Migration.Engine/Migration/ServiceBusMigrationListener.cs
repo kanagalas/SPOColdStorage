@@ -1,5 +1,5 @@
 ﻿using Azure.Messaging.ServiceBus;
-using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Model;
 using System.Collections.Concurrent;
@@ -18,7 +18,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         public ServiceBusMigrationListener(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
-            _sbClient = new ServiceBusClient(_config.ServiceBusConnectionString);
+            _sbClient = new ServiceBusClient(_config.ConnectionStrings.ServiceBus);
             _processor = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions());
             _sharePointFileMigrator = new SharePointFileMigrator(config, debugTracer);
         }
@@ -33,7 +33,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 // add handler to process any errors
                 _processor.ProcessErrorAsync += ErrorHandler;
 
-                var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ServiceBusConnectionString);
+                var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ConnectionStrings.ServiceBus);
                 _tracer.TrackTrace($"Listening on service-bus '{sbConnectionProps.Endpoint}' for new files to migrate.");
 
                 // start processing 
@@ -62,7 +62,7 @@ namespace SPO.ColdStorage.Migration.Engine
             {
                 _tracer.TrackTrace($"Started migration for: {msg.FileRelativePath}");
 
-                // Fire & forget on background thread 
+                // Fire & forget file migration on background thread 
                 _ = Task.Run(() => StartFileMigrationAsync(msg));
 
                 // Complete the message. messages is deleted from the queue. 
@@ -106,7 +106,7 @@ namespace SPO.ColdStorage.Migration.Engine
             catch (Exception ex)
             {
                 _tracer.TrackException(ex);
-                _tracer.TrackTrace($"Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullUrl}'", 
+                _tracer.TrackTrace($"ERROR: Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullUrl}'", 
                     Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
             }
             finally 

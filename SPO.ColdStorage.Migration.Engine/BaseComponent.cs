@@ -1,4 +1,5 @@
 ﻿using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;

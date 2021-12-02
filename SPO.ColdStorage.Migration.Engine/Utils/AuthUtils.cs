@@ -2,7 +2,7 @@
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Identity.Client;
 using Microsoft.SharePoint.Client;
-using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
 using System.Security.Cryptography.X509Certificates;
 
 namespace SPO.ColdStorage.Migration.Engine
