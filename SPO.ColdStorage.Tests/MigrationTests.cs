@@ -108,14 +108,14 @@ namespace SPO.ColdStorage.Tests
             var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
 
             // Before migration: SharePointFileNeedsMigrating should be true
-            var needsMigratingBeforeMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            var needsMigratingBeforeMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
             Assert.IsTrue(needsMigratingBeforeMigration);
 
             // Migrate the file to az blob
             await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
 
             // Now SharePointFileNeedsMigrating should be false
-            var needsMigratingPostMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            var needsMigratingPostMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
             Assert.IsFalse(needsMigratingPostMigration);
 
             // Update file with new content and recrawl
@@ -123,16 +123,16 @@ namespace SPO.ColdStorage.Tests
             discoveredFile = await GetFromIndex(ctx, fileTitle, targetList);
 
             // Now the file's been updated, it should need a new migration
-            var needsMigratingPostEdit = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            var needsMigratingPostEdit = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
             Assert.IsTrue(needsMigratingPostEdit);
 
             // Migrate again edited file & check status one last time
             await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
-            needsMigratingPostMigration = await migrator.SharePointFileNeedsMigrating(discoveredFile!, containerClient);
+            needsMigratingPostMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
             Assert.IsFalse(needsMigratingPostMigration);
         }
 
-        async Task<SharePointFileUpdateInfo?> GetFromIndex(ClientContext ctx, string fileTitle, List targetList)
+        async Task<SharePointFileVersionInfo?> GetFromIndex(ClientContext ctx, string fileTitle, List targetList)
         {
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
             var allResults = await crawler.CrawlList(targetList);
@@ -143,7 +143,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task SharePointFileDownloaderTests()
         {
-            var testMsg = new SharePointFileInfo 
+            var testMsg = new SharePointFileLocationInfo 
             { 
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite, 
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
@@ -157,7 +157,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task SharePointFileSearchProcessorTests()
         {
-            var testMsg = new SharePointFileInfo
+            var testMsg = new SharePointFileLocationInfo
             {
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite,
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
@@ -170,7 +170,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task BlobStorageFileUploadTests()
         {
-            var testMsg = new SharePointFileInfo
+            var testMsg = new SharePointFileLocationInfo
             {
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite,
                 FileRelativePath = $"/sites/MigrationHost/Unit tests/textfile{DateTime.Now.Ticks}.txt"

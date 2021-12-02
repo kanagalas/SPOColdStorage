@@ -9,7 +9,7 @@ namespace SPO.ColdStorage.Migration.Engine
     /// <summary>
     /// Listens for new service bus messages for files to migrate to az blob
     /// </summary>
-    public class ServiceBusMigrationListener : BaseComponent
+    public class ServiceBusMigrationListener : BaseComponent, IDisposable
     {
         private ServiceBusClient _sbClient;
         private ServiceBusProcessor _processor;
@@ -57,7 +57,7 @@ namespace SPO.ColdStorage.Migration.Engine
         async Task MessageHandler(ProcessMessageEventArgs args)
         {
             string body = args.Message.Body.ToString();
-            var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileUpdateInfo>(body);
+            var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileVersionInfo>(body);
             if (msg != null && msg.IsValidInfo)
             {
                 _tracer.TrackTrace($"Started migration for: {msg.FileRelativePath}");
@@ -83,7 +83,7 @@ namespace SPO.ColdStorage.Migration.Engine
             return Task.CompletedTask;
         }
 
-        private async Task StartFileMigrationAsync(SharePointFileUpdateInfo sharePointFileToMigrate)
+        private async Task StartFileMigrationAsync(SharePointFileVersionInfo sharePointFileToMigrate)
         {
             string thisFileRef = sharePointFileToMigrate.FullUrl;
             if (cb.Contains(thisFileRef))
@@ -122,6 +122,11 @@ namespace SPO.ColdStorage.Migration.Engine
                     _tracer.TrackTrace($"File '{sharePointFileToMigrate.FullUrl}' ({migratedFileSize.ToString("N0")} bytes) migrated succesfully.");
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            _sharePointFileMigrator.Dispose();
         }
     }
 }

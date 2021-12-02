@@ -18,7 +18,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Download file & return temp file-name + size
         /// </summary>
-        public async Task<(string, long)> DownloadFileToTempDir(SharePointFileInfo sharePointFile) 
+        public async Task<(string, long)> DownloadFileToTempDir(SharePointFileLocationInfo sharePointFile) 
         {
             _context.Load(_context.Web);
             var filetoDownload = _context.Web.GetFileByServerRelativeUrl(sharePointFile.FileRelativePath);
@@ -47,7 +47,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             return (tempFileName, fileSize);
         }
 
-        public static string GetTempFileNameAndCreateDir(SharePointFileInfo sharePointFile)
+        public static string GetTempFileNameAndCreateDir(SharePointFileLocationInfo sharePointFile)
         {
             var tempFileName = Path.GetTempPath().TrimEnd(@"\".ToCharArray()) + sharePointFile.FileRelativePath.Replace("/", @"\");
             var tempFileInfo = new FileInfo(tempFileName);

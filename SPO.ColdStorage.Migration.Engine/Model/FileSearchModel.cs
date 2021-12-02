@@ -13,7 +13,7 @@ namespace SPO.ColdStorage.Migration.Engine.Model
         public FileSearchModel()
         {
         }
-        public FileSearchModel(SharePointFileInfo sharePointFileInfo)
+        public FileSearchModel(SharePointFileLocationInfo sharePointFileInfo)
         {
 
             var fileNameArray = sharePointFileInfo.FileRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);

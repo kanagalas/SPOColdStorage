@@ -1,9 +1,8 @@
-﻿using Microsoft.SharePoint.Client;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SPO.ColdStorage.Migration.Engine.Model
 {
-    public class SharePointFileInfo
+    public class SharePointFileLocationInfo
     {
         /// <summary>
         /// Example: https://m365x352268.sharepoint.com/sites/MigrationHost
@@ -22,9 +21,8 @@ namespace SPO.ColdStorage.Migration.Engine.Model
         public virtual bool IsValidInfo => !string.IsNullOrEmpty(FileRelativePath) && !string.IsNullOrEmpty(SiteUrl);
     }
 
-    public class SharePointFileUpdateInfo : SharePointFileInfo
+    public class SharePointFileVersionInfo : SharePointFileLocationInfo
     {
-
         public DateTime LastModified { get; set; } = DateTime.MinValue;
 
         public override bool IsValidInfo => base.IsValidInfo && this.LastModified > DateTime.MinValue;
@@ -34,8 +32,8 @@ namespace SPO.ColdStorage.Migration.Engine.Model
     {
         public SharePointFileInfoEventArgs()
         {
-            this.SharePointFileInfo = new SharePointFileUpdateInfo();
+            this.SharePointFileInfo = new SharePointFileVersionInfo();
         }
-        public SharePointFileUpdateInfo SharePointFileInfo { get; set; }
+        public SharePointFileVersionInfo SharePointFileInfo { get; set; }
     }
 }

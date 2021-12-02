@@ -49,14 +49,14 @@ namespace SPO.ColdStorage.Migration.Engine
             }
         }
 
-        public async Task<List<SharePointFileUpdateInfo>> CrawlList(List list)
+        public async Task<List<SharePointFileVersionInfo>> CrawlList(List list)
         {
             _spClient.Load(list, l=> l.BaseType);
             _spClient.Load(list.RootFolder);
             _spClient.Load(list, l => l.RootFolder.Name);
             await _spClient.ExecuteQueryAsync();
 
-            var results = new List<SharePointFileUpdateInfo>();
+            var results = new List<SharePointFileVersionInfo>();
 
             var listItems = list.GetItems(new CamlQuery());
             _spClient.Load(listItems);
@@ -65,7 +65,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
             foreach (var item in listItems)
             {
-                SharePointFileUpdateInfo? foundFileInfo = null;
+                SharePointFileVersionInfo? foundFileInfo = null;
                 if (list.BaseType == BaseType.GenericList)
                 {
                     results.AddRange(await ProcessListItemAttachments(item));
@@ -84,7 +84,7 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process document library item.
         /// </summary>
-        private async Task<SharePointFileUpdateInfo?> ProcessDocLibItem(ListItem docListItem)
+        private async Task<SharePointFileVersionInfo?> ProcessDocLibItem(ListItem docListItem)
         {
             switch (docListItem.FileSystemObjectType)
             {
@@ -114,9 +114,9 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process custom list item attachments
         /// </summary>
-        private async Task<List<SharePointFileUpdateInfo>> ProcessListItemAttachments(ListItem item)
+        private async Task<List<SharePointFileVersionInfo>> ProcessListItemAttachments(ListItem item)
         {
-            var attachmentsResults = new List<SharePointFileUpdateInfo>();
+            var attachmentsResults = new List<SharePointFileVersionInfo>();
 
             _spClient.Load(item.AttachmentFiles);
             await _spClient.ExecuteQueryAsync();
@@ -136,12 +136,12 @@ namespace SPO.ColdStorage.Migration.Engine
         }
 
 
-        SharePointFileUpdateInfo GetSharePointFileInfo(ListItem item, string url)
+        SharePointFileVersionInfo GetSharePointFileInfo(ListItem item, string url)
         {
             var dt = DateTime.MinValue;
             if (DateTime.TryParse(item.FieldValues["Modified"]?.ToString(), out dt))
             {
-                return new SharePointFileUpdateInfo
+                return new SharePointFileVersionInfo
                 {
                     FileRelativePath = url,
                     LastModified = dt,

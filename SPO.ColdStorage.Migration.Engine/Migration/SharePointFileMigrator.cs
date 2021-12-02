@@ -23,9 +23,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             _db = new SPOColdStorageDbContext(_config.SQLConnectionString);
         }
 
-        public async Task QueueSharePointFileMigrationIfNeeded(SharePointFileUpdateInfo sharePointFileInfo, BlobContainerClient containerClient)
+        /// <summary>
+        /// Queue file for migrator to pick-up & migrate
+        /// </summary>
+        public async Task QueueSharePointFileMigrationIfNeeded(SharePointFileVersionInfo sharePointFileInfo, BlobContainerClient containerClient)
         {
-            bool needsMigrating = await SharePointFileNeedsMigrating(sharePointFileInfo, containerClient);
+            bool needsMigrating = await DoesSharePointFileNeedMigrating(sharePointFileInfo, containerClient);
             if (needsMigrating)
             {
                 // Send msg to migrate file
@@ -35,7 +38,10 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             }
         }
 
-        public async Task<bool> SharePointFileNeedsMigrating(SharePointFileUpdateInfo sharePointFileInfo, BlobContainerClient containerClient)
+        /// <summary>
+        /// Checks if a given file in SharePoint exists in blob & has the latest version
+        /// </summary>
+        public async Task<bool> DoesSharePointFileNeedMigrating(SharePointFileVersionInfo sharePointFileInfo, BlobContainerClient containerClient)
         {
             // Check if blob exists in account
             var fileRef = containerClient.GetBlobClient(sharePointFileInfo.FileRelativePath);
@@ -60,7 +66,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Download from SP and upload to blob-storage
         /// </summary>
-        public async Task<long> MigrateFromSharePointToBlobStorage(SharePointFileUpdateInfo fileToMigrate, ClientContext ctx)
+        public async Task<long> MigrateFromSharePointToBlobStorage(SharePointFileVersionInfo fileToMigrate, ClientContext ctx)
         {
             // Download from SP to local
             var downloader = new SharePointFileDownloader(ctx, _config, _tracer);

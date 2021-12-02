@@ -15,7 +15,7 @@ namespace SPO.ColdStorage.Tests
         public void FileSearchModelTests()
         {
             // Normal SP path
-            var searchObj1 = new FileSearchModel(new SharePointFileInfo 
+            var searchObj1 = new FileSearchModel(new SharePointFileLocationInfo 
             { 
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx",
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost"
@@ -25,7 +25,7 @@ namespace SPO.ColdStorage.Tests
 
 
             // Normalish SP path
-            var searchObj2 = new FileSearchModel(new SharePointFileInfo
+            var searchObj2 = new FileSearchModel(new SharePointFileLocationInfo
             {
                 FileRelativePath = "/sites/Blank%20Office%20PPT.pptx",
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost"
@@ -36,7 +36,7 @@ namespace SPO.ColdStorage.Tests
 
 
             // Invalid SP path
-            var searchObj3 = new FileSearchModel(new SharePointFileInfo
+            var searchObj3 = new FileSearchModel(new SharePointFileLocationInfo
             {
                 FileRelativePath = "Blank%20Office%20PPT.pptx",
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost"
@@ -48,14 +48,14 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public void SharePointFileInfoTests()
         {
-            var emptyMsg1 = new SharePointFileInfo { };
+            var emptyMsg1 = new SharePointFileLocationInfo { };
             Assert.IsFalse(emptyMsg1.IsValidInfo);
 
-            var halfEmptyMsg = new SharePointFileInfo { FileRelativePath = "/whatever" };
+            var halfEmptyMsg = new SharePointFileLocationInfo { FileRelativePath = "/whatever" };
             Assert.IsFalse(halfEmptyMsg.IsValidInfo);
 
 
-            var legitMsg = new SharePointFileInfo { FileRelativePath = "/whatever", SiteUrl = "https://m365x352268.sharepoint.com" };
+            var legitMsg = new SharePointFileLocationInfo { FileRelativePath = "/whatever", SiteUrl = "https://m365x352268.sharepoint.com" };
             Assert.IsTrue(legitMsg.IsValidInfo);
         }
     }
