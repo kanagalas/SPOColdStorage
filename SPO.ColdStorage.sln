@@ -13,7 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPO.ColdStorage.Entities", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPO.ColdStorage.Migration.Migrator", "SPO.ColdStorage.Migration.Migrator\SPO.ColdStorage.Migration.Migrator.csproj", "{51826CB7-1095-461D-9288-2FB55B5C588E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SPO.ColdStorage.Web", "SPO.ColdStorage.Web\SPO.ColdStorage.Web.csproj", "{01B86447-FDBB-4F7F-9884-5B5B4E3DC0CB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SPO.ColdStorage.Web", "SPO.ColdStorage.Web\SPO.ColdStorage.Web.csproj", "{01B86447-FDBB-4F7F-9884-5B5B4E3DC0CB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

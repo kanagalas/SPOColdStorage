@@ -3,7 +3,7 @@
 
     public class Config : BaseConfig
     {
-        public Config(Microsoft.Extensions.Configuration.IConfigurationRoot config) : base(config)
+        public Config(Microsoft.Extensions.Configuration.IConfiguration config) : base(config)
         {
         }
 

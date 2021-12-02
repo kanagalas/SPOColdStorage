@@ -11,7 +11,7 @@ export class Home extends Component {
       <div>
         <h1>Cold Storage Access Web</h1>
             <p>This application is for finding files moved into Azure Blob cold storage.</p>
-            <p><NavLink tag={Link} className="text-dark" to="/fetch-data">Check log</NavLink></p>
+            <p><NavLink tag={Link} className="text-dark" to="/FindLog">Check log</NavLink></p>
         <ul>
           <li><a href='https://get.asp.net/'>ASP.NET Core</a> and <a href='https://msdn.microsoft.com/en-us/library/67ef8sbd.aspx'>C#</a> for cross-platform server-side code</li>
           <li><a href='https://facebook.github.io/react/'>React</a> for client-side code</li>
