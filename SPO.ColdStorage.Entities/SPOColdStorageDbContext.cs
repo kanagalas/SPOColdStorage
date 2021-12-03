@@ -1,21 +1,24 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
 
 namespace SPO.ColdStorage.Entities
 {
     public class SPOColdStorageDbContext : DbContext
     {
-        public SPOColdStorageDbContext(string connectionString)
+        public SPOColdStorageDbContext(string connectionString, Config config)
         { 
-            this.ConnectionString = connectionString;
+            this.connectionString = connectionString;
+            this.config = config;   
         }
 
-        public SPOColdStorageDbContext(DbContextOptions<SPOColdStorageDbContext> options) : base(options)
+        public SPOColdStorageDbContext(DbContextOptions<SPOColdStorageDbContext> options, Config config) : base(options)
         {
+            this.config = config;
         }
 
-        public string ConnectionString { get; set; } = String.Empty;
-
+        private string connectionString = String.Empty;
+        private readonly Config config;
 
         public DbSet<SharePointMigration> Migrations { get; set; } = null!;
         public DbSet<TargetSharePointSite> TargetSharePointSites { get; set; } = null!;
@@ -24,6 +27,6 @@ namespace SPO.ColdStorage.Entities
         public DbSet<SuccesfulMigrationLog> SuccesfulMigrations { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
-            => options.UseSqlServer(this.ConnectionString);
+            => options.UseSqlServer(!String.IsNullOrEmpty(this.connectionString) ? this.connectionString : config.ConnectionStrings.SQLConnectionString);
     }
 }

@@ -1,12 +1,14 @@
 import React from 'react';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 
 interface SharePointFile
 {
-    FileName: string;
+    fileName: string;
 }
 interface MigrationLog
 {
-    File: SharePointFile
+    file: SharePointFile
 }
 
 interface SearchLogsState
@@ -22,11 +24,11 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
 
     constructor(props : any) {
         super(props);
-        this.state = { searchLogs: [], loading: true, searchTerm: "" };
+        this.state = { searchLogs: [], loading: false, searchTerm: "" };
     }
 
     componentDidMount() {
-        if (this.state.searchTerm != "") {
+        if (this.state.searchTerm !== "") {
             this.populateSearchLogsFromSearch();
         }
     }
@@ -41,7 +43,8 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
                 </thead>
                 <tbody>
                     {logs.map((log : MigrationLog) =>
-                        <tr key={log.File?.FileName}>
+                        <tr key={log.file?.fileName}>
+                            <td>{log.file?.fileName}</td>
                         </tr>
                     )}
                 </tbody>
@@ -58,21 +61,34 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
             <div>
                 <h1 id="tabelLabel">Migration Logs</h1>
                 <p>Search for a file migrated.</p>
+                <TextField id="outlined-basic" label="Search term" variant="outlined" required 
+                    onChange={e => { this.setState({ searchTerm : e.target.value});}} />
+                <Button variant="outlined" 
+                    onClick={() => {
+                        this.populateSearchLogsFromSearch();
+                    }}
+                >Search</Button>
+
                 {contents}
             </div>
         );
     }
 
     async populateSearchLogsFromSearch() {
-        await fetch('migrationrecord?keyWord=' + this.state.searchTerm)
+        if (this.state.searchTerm.length > 0) {
+            this.setState({loading: true});
+            await fetch('migrationrecord?keyWord=' + this.state.searchTerm)
             .then(async response => {
 
                 const data = await response.json();
+                console.log(data);
                 this.setState({ searchLogs: data, loading: false });
+                this.setState({loading: false});
             })
             .catch(err => {
                 alert('Loading data failed');
+                this.setState({ searchLogs: [], loading: false });
             });
-        
+        }
     }
 }

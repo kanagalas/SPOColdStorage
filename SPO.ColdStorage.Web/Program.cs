@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var config = new Config(builder.Configuration);
 
+builder.Services.AddSingleton(config);  
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<SPOColdStorageDbContext>(
     options => options.UseSqlServer(config.ConnectionStrings.SQLConnectionString));
