@@ -82,9 +82,6 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             var blobUploader = new BlobStorageUploader(_config, _tracer);
             await blobUploader.UploadFileToAzureBlob(tempFileNameAndSize.Item1, fileToMigrate);
 
-            // Log a success in SQL (update/create)
-            await SaveMigration(fileToMigrate);
-
             // Clean-up temp file
             try
             {
@@ -99,40 +96,9 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             return tempFileNameAndSize.Item2;
         }
 
-        async Task SaveMigration(SharePointFileVersionInfo fileMigrated)
+        public async Task SaveSucessfulFileMigrationToSql(SharePointFileVersionInfo fileMigrated)
         {
-            // Find/create web & site
-            var migratedFileSite = await _db.Sites.Where(f => f.Url.ToLower() == fileMigrated.SiteUrl.ToLower()).FirstOrDefaultAsync();
-            if (migratedFileSite == null)
-            {
-                migratedFileSite = new Entities.DBEntities.Site
-                {
-                    Url = fileMigrated.SiteUrl.ToLower()
-                };
-                _db.Sites.Append(migratedFileSite);
-            }
-
-            var migratedFileWeb = await _db.Webs.Where(f => f.Url.ToLower() == fileMigrated.WebUrl.ToLower()).FirstOrDefaultAsync();
-            if (migratedFileWeb == null)
-            {
-                migratedFileWeb = new Entities.DBEntities.Web
-                {
-                    Url = fileMigrated.WebUrl.ToLower(),
-                    Site = migratedFileSite
-                };
-                _db.Webs.Append(migratedFileWeb);
-            }
-
-            // Find/create file
-            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullUrl.ToLower()).FirstOrDefaultAsync();
-            if (migratedFile == null)
-            {
-                migratedFile = new Entities.DBEntities.File
-                {
-                    Url = fileMigrated.FullUrl.ToLower()
-                };
-                _db.Files.Append(migratedFile);
-            }
+            var migratedFile = await GetDbFileForFileInfo(fileMigrated);
 
             // Add log
             var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
@@ -145,6 +111,61 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             log.LastModified = fileMigrated.LastModified;
             await _db.SaveChangesAsync();
         }
+
+        public async Task SaveErrorForFileMigrationToSql(Exception ex, SharePointFileVersionInfo fileNotMigrated)
+        {
+            var errorFile = await GetDbFileForFileInfo(fileNotMigrated);
+
+            // Add log
+            var log = await _db.FileMigrationErrors.Where(l => l.File == errorFile).SingleOrDefaultAsync();
+            if (log == null)
+            {
+                log = new FileMigrationErrorLog { File = errorFile };
+                _db.FileMigrationErrors.Add(log);
+            }
+            log.TimeStamp = DateTime.Now;
+
+            await _db.SaveChangesAsync();
+        }
+        async Task<Entities.DBEntities.File> GetDbFileForFileInfo(SharePointFileVersionInfo fileMigrated)
+        {
+            // Find/create web & site
+            var fileSite = await _db.Sites.Where(f => f.Url.ToLower() == fileMigrated.SiteUrl.ToLower()).FirstOrDefaultAsync();
+            if (fileSite == null)
+            {
+                fileSite = new Entities.DBEntities.Site
+                {
+                    Url = fileMigrated.SiteUrl.ToLower()
+                };
+                _db.Sites.Append(fileSite);
+            }
+
+            var fileWeb = await _db.Webs.Where(f => f.Url.ToLower() == fileMigrated.WebUrl.ToLower()).FirstOrDefaultAsync();
+            if (fileWeb == null)
+            {
+                fileWeb = new Entities.DBEntities.Web
+                {
+                    Url = fileMigrated.WebUrl.ToLower(),
+                    Site = fileSite
+                };
+                _db.Webs.Append(fileWeb);
+            }
+
+            // Find/create file
+            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullUrl.ToLower()).FirstOrDefaultAsync();
+            if (migratedFile == null)
+            {
+                migratedFile = new Entities.DBEntities.File
+                {
+                    Url = fileMigrated.FullUrl.ToLower(),
+                    Web = fileWeb
+                };
+                _db.Files.Append(migratedFile);
+            }
+
+            return migratedFile;
+        }
+
 
         public void Dispose()
         {

@@ -11,18 +11,19 @@ namespace SPO.ColdStorage.Migration.Engine
     /// <summary>
     /// Listens for new service bus messages for files to migrate to az blob
     /// </summary>
-    public class ServiceBusMigrationListener : BaseComponent, IDisposable
+    public class ServiceBusMigrationListener : BaseComponent
     {
         private ServiceBusClient _sbClient;
         private ServiceBusProcessor _processor;
-        private SharePointFileMigrator _sharePointFileMigrator;
-        private ConcurrentBag<string> cb = new();
+        private ConcurrentBag<string> _concurrentDownloads = new();
 
         public ServiceBusMigrationListener(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             _sbClient = new ServiceBusClient(_config.ConnectionStrings.ServiceBus);
-            _processor = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions());
-            _sharePointFileMigrator = new SharePointFileMigrator(config, debugTracer);
+            _processor = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions
+            {
+                MaxConcurrentCalls = 10
+            });
         }
 
         public async Task ListenForFilesToMigrate()
@@ -70,7 +71,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 _tracer.TrackTrace($"Started migration for: {msg.FileRelativePath}");
 
                 // Fire & forget file migration on background thread 
-                _ = Task.Run(() => StartFileMigrationAsync(msg));
+                await StartFileMigrationAsync(msg);
 
                 // Complete the message. messages is deleted from the queue. 
                 await args.CompleteMessageAsync(args.Message);
@@ -92,48 +93,56 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private async Task StartFileMigrationAsync(SharePointFileVersionInfo sharePointFileToMigrate)
         {
-            string thisFileRef = sharePointFileToMigrate.FullUrl;
-            if (cb.Contains(thisFileRef))
+            using (var sharePointFileMigrator = new SharePointFileMigrator(_config, _tracer))
             {
-                _tracer.TrackTrace($"Already currently importing file '{sharePointFileToMigrate.FullUrl}'. Won't do it twice this session.", 
-                    Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
-                return;
-            }
-
-            // Find/create SP context
-            var ctx = await AuthUtils.GetClientContext(_config, sharePointFileToMigrate.SiteUrl);
-
-            // Begin migration on common class
-            cb.Add(sharePointFileToMigrate.FileRelativePath);
-            long migratedFileSize = 0;
-            try
-            {
-                migratedFileSize = await _sharePointFileMigrator.MigrateFromSharePointToBlobStorage(sharePointFileToMigrate, ctx);
-            }
-            catch (Exception ex)
-            {
-                _tracer.TrackException(ex);
-                _tracer.TrackTrace($"ERROR: Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullUrl}'", 
-                    Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
-            }
-            finally 
-            {
-                // Import done/failed - remove from list of current imports
-                if (!cb.TryTake(out thisFileRef!))
+                string thisFileRef = sharePointFileToMigrate.FullUrl;
+                if (_concurrentDownloads.Contains(thisFileRef))
                 {
-                    _tracer.TrackTrace($"Error removing file '{sharePointFileToMigrate.FullUrl}' from list of concurrent operations. Not sure what to do.",
+                    _tracer.TrackTrace($"Already currently importing file '{sharePointFileToMigrate.FullUrl}'. Won't do it twice this session.",
                         Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                    return;
                 }
-                else
+
+                // Find/create SP context
+                var ctx = await AuthUtils.GetClientContext(_config, sharePointFileToMigrate.SiteUrl);
+
+                // Begin migration on common class
+                _concurrentDownloads.Add(sharePointFileToMigrate.FileRelativePath);
+                long migratedFileSize = 0;
+                bool success = false;
+                try
                 {
-                    _tracer.TrackTrace($"File '{sharePointFileToMigrate.FullUrl}' ({migratedFileSize.ToString("N0")} bytes) migrated succesfully.");
+                    migratedFileSize = await sharePointFileMigrator.MigrateFromSharePointToBlobStorage(sharePointFileToMigrate, ctx);
+                    success = true;
+                }
+                catch (Exception ex)
+                {
+                    _tracer.TrackException(ex);
+                    _tracer.TrackTrace($"ERROR: Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullUrl}'",
+                        Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+
+                    await sharePointFileMigrator.SaveErrorForFileMigrationToSql(ex, sharePointFileToMigrate);
+                }
+                finally
+                {
+                    // Import done/failed - remove from list of current imports
+                    if (!_concurrentDownloads.TryTake(out thisFileRef!))
+                    {
+                        _tracer.TrackTrace($"Error removing file '{sharePointFileToMigrate.FullUrl}' from list of concurrent operations. Not sure what to do.",
+                            Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                    }
+                    else
+                    {
+                        _tracer.TrackTrace($"File '{sharePointFileToMigrate.FullUrl}' ({migratedFileSize.ToString("N0")} bytes) migrated succesfully.");
+                    }
+                }
+
+                if (success)
+                {
+                    await sharePointFileMigrator.SaveSucessfulFileMigrationToSql(sharePointFileToMigrate);
                 }
             }
         }
 
-        public void Dispose()
-        {
-            _sharePointFileMigrator.Dispose();
-        }
     }
 }

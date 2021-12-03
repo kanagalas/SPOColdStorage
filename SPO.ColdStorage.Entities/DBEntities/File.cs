@@ -7,5 +7,10 @@ namespace SPO.ColdStorage.Entities.DBEntities
     [Table("files")]
     public class File : BaseDBObjectWithUrl
     {
+        [ForeignKey(nameof(Web))]
+        [Column("web_id")]
+        public int WebId { get; set; }
+
+        public Web Web { get; set; } = null!;
     }
 }
