@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace SPO.ColdStorage.Entities.DBEntities
 {
     [Table("sites")]
-    public class Site : BaseDBObjectWithName
+    public class Site : BaseDBObjectWithUrl
     {
     }
 }

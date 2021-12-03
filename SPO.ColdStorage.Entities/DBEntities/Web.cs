@@ -1,15 +1,15 @@
 ﻿using SPO.ColdStorage.Entities.Abstract;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Entities.DBEntities
 {
     [Table("webs")]
-    public class Web : BaseDBObjectWithName
+    public class Web : BaseDBObjectWithUrl
     {
+        [ForeignKey(nameof(Site))]
+        [Column("site_id")]
+        public int SiteId { get; set; }
+
+        public Site Site { get; set; } = null!;
     }
 }

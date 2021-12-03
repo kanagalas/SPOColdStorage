@@ -25,6 +25,6 @@ namespace SPO.ColdStorage.Entities
         public DbSet<DBEntities.FileMigrationCompletedLog> FileMigrationsCompleted { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
-            => options.UseSqlServer(_config.ConnectionStrings.SQLConnectionString);
+            => options.UseSqlServer(_config.ConnectionStrings.SQLConnectionString, op => op.EnableRetryOnFailure());
     }
 }

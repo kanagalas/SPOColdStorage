@@ -11,7 +11,7 @@ using System;
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
     /// <summary>
-    /// The top-level file migration logic for both indexer and migrator
+    /// The top-level file migration logic for both indexer and migrator.
     /// </summary>
     public class SharePointFileMigrator : BaseComponent, IDisposable
     {
@@ -51,7 +51,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
             // Verify version migrated in SQL
             bool logExistsAndIsForSameVersion = false;
-            var migratedFile = await _db.Files.Where(f => f.Name.ToLower() == sharePointFileInfo.FullUrl.ToLower()).FirstOrDefaultAsync();
+            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == sharePointFileInfo.FullUrl.ToLower()).FirstOrDefaultAsync();
             if (migratedFile != null)
             {
                 var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
@@ -83,24 +83,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             await blobUploader.UploadFileToAzureBlob(tempFileNameAndSize.Item1, fileToMigrate);
 
             // Log a success in SQL (update/create)
-            var migratedFile = await _db.Files.Where(f=> f.Name.ToLower() == fileToMigrate.FullUrl.ToLower()).FirstOrDefaultAsync();
-            if (migratedFile == null)
-            {
-                migratedFile = new Entities.DBEntities.File 
-                {
-                    Name = fileToMigrate.FullUrl.ToLower()
-                };
-                _db.Files.Append(migratedFile);
-            }
-            var log = await _db.FileMigrationsCompleted.Where(l=> l.File == migratedFile).SingleOrDefaultAsync();
-            if (log == null)
-            {
-                log = new FileMigrationCompletedLog { File = migratedFile };
-                _db.FileMigrationsCompleted.Add(log);
-            }
-            log.Migrated = DateTime.Now;
-            log.LastModified = fileToMigrate.LastModified;
-            await _db.SaveChangesAsync();
+            await SaveMigration(fileToMigrate);
 
             // Clean-up temp file
             try
@@ -114,6 +97,53 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
             // Return file-size
             return tempFileNameAndSize.Item2;
+        }
+
+        async Task SaveMigration(SharePointFileVersionInfo fileMigrated)
+        {
+            // Find/create web & site
+            var migratedFileSite = await _db.Sites.Where(f => f.Url.ToLower() == fileMigrated.SiteUrl.ToLower()).FirstOrDefaultAsync();
+            if (migratedFileSite == null)
+            {
+                migratedFileSite = new Entities.DBEntities.Site
+                {
+                    Url = fileMigrated.SiteUrl.ToLower()
+                };
+                _db.Sites.Append(migratedFileSite);
+            }
+
+            var migratedFileWeb = await _db.Webs.Where(f => f.Url.ToLower() == fileMigrated.WebUrl.ToLower()).FirstOrDefaultAsync();
+            if (migratedFileWeb == null)
+            {
+                migratedFileWeb = new Entities.DBEntities.Web
+                {
+                    Url = fileMigrated.WebUrl.ToLower(),
+                    Site = migratedFileSite
+                };
+                _db.Webs.Append(migratedFileWeb);
+            }
+
+            // Find/create file
+            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullUrl.ToLower()).FirstOrDefaultAsync();
+            if (migratedFile == null)
+            {
+                migratedFile = new Entities.DBEntities.File
+                {
+                    Url = fileMigrated.FullUrl.ToLower()
+                };
+                _db.Files.Append(migratedFile);
+            }
+
+            // Add log
+            var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
+            if (log == null)
+            {
+                log = new FileMigrationCompletedLog { File = migratedFile };
+                _db.FileMigrationsCompleted.Add(log);
+            }
+            log.Migrated = DateTime.Now;
+            log.LastModified = fileMigrated.LastModified;
+            await _db.SaveChangesAsync();
         }
 
         public void Dispose()

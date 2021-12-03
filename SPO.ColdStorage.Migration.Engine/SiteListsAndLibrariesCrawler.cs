@@ -148,6 +148,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 {
                     FileRelativePath = url,
                     LastModified = dt,
+                    WebUrl = _spClient.Web.Url,
                     SiteUrl = _spClient.Url
                 };
             }

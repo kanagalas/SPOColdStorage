@@ -1,5 +1,4 @@
-﻿using SPO.ColdStorage.Entities.DBEntities;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SPO.ColdStorage.Entities.Abstract
@@ -21,11 +20,11 @@ namespace SPO.ColdStorage.Entities.Abstract
         }
     }
 
-    public abstract class BaseDBObjectWithName : BaseDBObject
+    public abstract class BaseDBObjectWithUrl : BaseDBObject
     {
         [Required]
-        [Column("name")]
-        public string Name { get; set; } = string.Empty;
+        [Column("url")]
+        public string Url { get; set; } = string.Empty;
 
     }
 
@@ -37,7 +36,5 @@ namespace SPO.ColdStorage.Entities.Abstract
 
         [Required]
         public DBEntities.File File { get; set; } = new DBEntities.File();
-
-
     }
 }

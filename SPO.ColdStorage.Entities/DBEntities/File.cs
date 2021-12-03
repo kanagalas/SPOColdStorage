@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SPO.ColdStorage.Entities.DBEntities
 {
     [Table("files")]
-    public class File : BaseDBObjectWithName
+    public class File : BaseDBObjectWithUrl
     {
     }
 }
