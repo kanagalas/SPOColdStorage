@@ -8,9 +8,8 @@ using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Entities.DBEntities
 {
-    public class MigrationError : BaseFileRelatedClass
+    [Table("webs")]
+    public class Web : BaseDBObjectWithName
     {
-        [Column("error")]
-        public string Error { get; set; } = string.Empty;   
     }
 }

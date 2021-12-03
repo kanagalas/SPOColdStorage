@@ -21,6 +21,14 @@ namespace SPO.ColdStorage.Entities.Abstract
         }
     }
 
+    public abstract class BaseDBObjectWithName : BaseDBObject
+    {
+        [Required]
+        [Column("name")]
+        public string Name { get; set; } = string.Empty;
+
+    }
+
     public abstract class BaseFileRelatedClass : BaseDBObject
     {
         [ForeignKey(nameof(File))]
@@ -28,14 +36,8 @@ namespace SPO.ColdStorage.Entities.Abstract
         public int FileId { get; set; }
 
         [Required]
-        public SharePointFile File { get; set; } = new SharePointFile();
+        public DBEntities.File File { get; set; } = new DBEntities.File();
 
 
-        [ForeignKey(nameof(Migration))]
-        [Column("migration_id")]
-        public int MigrationId { get; set; }
-
-        [Required]
-        public SharePointMigration Migration { get; set; } = new SharePointMigration();
     }
 }

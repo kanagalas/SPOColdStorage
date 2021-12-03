@@ -38,26 +38,17 @@ namespace SPO.ColdStorage.Migration.Engine
             // Create container with no access to public
             await _containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
 
-            using (var db = new SPOColdStorageDbContext(this._config.ConnectionStrings.SQLConnectionString))
+            using (var db = new SPOColdStorageDbContext(this._config))
             {
-                var migrations = await db.Migrations.Include(m => m.TargetSites).ToListAsync();
-                foreach (var m in migrations)
+                var sitesToMigrate = await db.TargetSharePointSites.ToListAsync();
+                foreach (var s in sitesToMigrate)
                 {
-                    if (!m.Started.HasValue)
-                    {
-                        await StartMigration(m);
-                    }
+                        await StartSiteMigration(s.RootURL);
+                    
                 }
             }
         }
 
-        async Task StartMigration(Entities.DBEntities.SharePointMigration m)
-        {
-            foreach (var siteId in m.TargetSites)
-            {
-                await StartSiteMigration(siteId.RootURL);
-            }
-        }
         async Task StartSiteMigration(string siteUrl)
         {
             var ctx = await AuthUtils.GetClientContext(_config, siteUrl);

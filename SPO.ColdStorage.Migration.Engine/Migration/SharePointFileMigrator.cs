@@ -22,7 +22,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         {
             _sbClient = new ServiceBusClient(_config.ConnectionStrings.ServiceBus);
             _sbSender = _sbClient.CreateSender(_config.ServiceBusQueueName);
-            _db = new SPOColdStorageDbContext(_config.ConnectionStrings.SQLConnectionString);
+            _db = new SPOColdStorageDbContext(_config);
         }
 
         /// <summary>
@@ -51,10 +51,10 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
             // Verify version migrated in SQL
             bool logExistsAndIsForSameVersion = false;
-            var migratedFile = await _db.Files.Where(f => f.FileName.ToLower() == sharePointFileInfo.FullUrl.ToLower()).FirstOrDefaultAsync();
+            var migratedFile = await _db.Files.Where(f => f.Name.ToLower() == sharePointFileInfo.FullUrl.ToLower()).FirstOrDefaultAsync();
             if (migratedFile != null)
             {
-                var log = await _db.SuccesfulMigrations.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
+                var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
                 if (log != null)
                 {
                     logExistsAndIsForSameVersion = log.LastModified == sharePointFileInfo.LastModified;
@@ -83,20 +83,20 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             await blobUploader.UploadFileToAzureBlob(tempFileNameAndSize.Item1, fileToMigrate);
 
             // Log a success in SQL (update/create)
-            var migratedFile = await _db.Files.Where(f=> f.FileName.ToLower() == fileToMigrate.FullUrl.ToLower()).FirstOrDefaultAsync();
+            var migratedFile = await _db.Files.Where(f=> f.Name.ToLower() == fileToMigrate.FullUrl.ToLower()).FirstOrDefaultAsync();
             if (migratedFile == null)
             {
-                migratedFile = new SharePointFile 
+                migratedFile = new Entities.DBEntities.File 
                 {
-                    FileName = fileToMigrate.FullUrl.ToLower()
+                    Name = fileToMigrate.FullUrl.ToLower()
                 };
                 _db.Files.Append(migratedFile);
             }
-            var log = await _db.SuccesfulMigrations.Where(l=> l.File == migratedFile).SingleOrDefaultAsync();
+            var log = await _db.FileMigrationsCompleted.Where(l=> l.File == migratedFile).SingleOrDefaultAsync();
             if (log == null)
             {
-                log = new SuccesfulMigrationLog { File = migratedFile };
-                _db.SuccesfulMigrations.Add(log);
+                log = new FileMigrationCompletedLog { File = migratedFile };
+                _db.FileMigrationsCompleted.Add(log);
             }
             log.Migrated = DateTime.Now;
             log.LastModified = fileToMigrate.LastModified;

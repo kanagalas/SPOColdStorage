@@ -16,6 +16,10 @@ builder.Services.AddDbContext<SPOColdStorageDbContext>(
 
 var app = builder.Build();
 
+// Init DB if needed
+var db = new SPOColdStorageDbContext(config);
+await DbInitializer.Init(db, config.DevConfig);
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {

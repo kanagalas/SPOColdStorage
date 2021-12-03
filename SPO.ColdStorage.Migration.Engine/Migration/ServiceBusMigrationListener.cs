@@ -30,9 +30,9 @@ namespace SPO.ColdStorage.Migration.Engine
             try
             {
                 // Start an initial DB session to avoid threads configuring context
-                using (var db = new SPOColdStorageDbContext(_config.ConnectionStrings.SQLConnectionString))
+                using (var db = new SPOColdStorageDbContext(_config))
                 {
-                    await db.Migrations.CountAsync();
+                    await db.TargetSharePointSites.CountAsync();
                 }
 
                 // add handler to process messages

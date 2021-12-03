@@ -1,32 +1,30 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities.Configuration;
-using SPO.ColdStorage.Entities.DBEntities;
 
 namespace SPO.ColdStorage.Entities
 {
     public class SPOColdStorageDbContext : DbContext
     {
-        public SPOColdStorageDbContext(string connectionString, Config config)
+        private readonly Config _config;
+
+        public SPOColdStorageDbContext(Config config)
         { 
-            this.connectionString = connectionString;
-            this.config = config;   
+            this._config = config;   
         }
 
         public SPOColdStorageDbContext(DbContextOptions<SPOColdStorageDbContext> options, Config config) : base(options)
         {
-            this.config = config;
+            this._config = config;
         }
 
-        private string connectionString = String.Empty;
-        private readonly Config config;
-
-        public DbSet<SharePointMigration> Migrations { get; set; } = null!;
-        public DbSet<TargetSharePointSite> TargetSharePointSites { get; set; } = null!;
-        public DbSet<SharePointFile> Files { get; set; } = null!;
-        public DbSet<MigrationError> MigrationErrors { get; set; } = null!;
-        public DbSet<SuccesfulMigrationLog> SuccesfulMigrations { get; set; } = null!;
+        public DbSet<DBEntities.TargetMigrationSite> TargetSharePointSites { get; set; } = null!;
+        public DbSet<DBEntities.Site> Sites { get; set; } = null!;
+        public DbSet<DBEntities.Web> Webs { get; set; } = null!;
+        public DbSet<DBEntities.File> Files { get; set; } = null!;
+        public DbSet<DBEntities.FileMigrationErrorLog> FileMigrationErrors { get; set; } = null!;
+        public DbSet<DBEntities.FileMigrationCompletedLog> FileMigrationsCompleted { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
-            => options.UseSqlServer(!String.IsNullOrEmpty(this.connectionString) ? this.connectionString : config.ConnectionStrings.SQLConnectionString);
+            => options.UseSqlServer(_config.ConnectionStrings.SQLConnectionString);
     }
 }

@@ -35,20 +35,27 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
 
     static renderResultsTable(logs: Array<MigrationLog>) {
         return (
-            <table className='table table-striped' aria-labelledby="tabelLabel">
-                <thead>
-                    <tr>
-                        <th>File name</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {logs.map((log : MigrationLog) =>
-                        <tr key={log.file?.fileName}>
-                            <td>{log.file?.fileName}</td>
+            <div>
+                {logs.length > 0 ?
+                    <table className='table table-striped' aria-labelledby="tabelLabel">
+                    <thead>
+                        <tr>
+                            <th>File name</th>
                         </tr>
-                    )}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {logs.map((log : MigrationLog) =>
+                            <tr key={log.file?.fileName}>
+                                <td>{log.file?.fileName}</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+                :
+                    <div>No files found</div>
+                }
+                
+            </div>
         );
     }
 

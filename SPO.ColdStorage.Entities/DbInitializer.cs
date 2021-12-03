@@ -13,19 +13,14 @@ namespace SPO.ColdStorage.Entities
         public async static Task<bool> Init(SPOColdStorageDbContext context, DevConfig config)
         {
             context.Database.EnsureCreated();
-            if (context.Migrations.Any() || config == null)
+            if (context.TargetSharePointSites.Any() || config == null)
             {
                 return false;
             }
 
             // Add default data
 
-            context.Migrations.Add(new SharePointMigration
-            {
-                Name = "Test migration",
-                StorageAccount = config.DefaultStorageConnection,
-                TargetSites = new List<TargetSharePointSite> { new TargetSharePointSite { RootURL = config.DefaultSharePointSite } }
-            });
+            context.TargetSharePointSites.Add( new TargetMigrationSite { RootURL = config.DefaultSharePointSite } );
             await context.SaveChangesAsync();
 
             return true;

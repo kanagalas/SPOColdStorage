@@ -37,7 +37,7 @@ namespace SPO.ColdStorage.Tests
             _config = new Config(config);
 
             // Init DB
-            using (var db = new SPOColdStorageDbContext(_config!.ConnectionStrings!.SQLConnectionString!))
+            using (var db = new SPOColdStorageDbContext(_config!))
             {
                 await DbInitializer.Init(db, _config.DevConfig!);
             }

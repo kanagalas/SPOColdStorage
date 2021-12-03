@@ -19,7 +19,7 @@ namespace SPO.ColdStorage.Web.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SuccesfulMigrationLog>>> GetSuccesfulMigrations(string keyWord)
+        public async Task<ActionResult<IEnumerable<FileMigrationCompletedLog>>> GetSuccesfulMigrations(string keyWord)
         {
             if (string.IsNullOrEmpty(keyWord))
             {
@@ -27,10 +27,10 @@ namespace SPO.ColdStorage.Web.Controllers
             }
             else
             {
-                return await _context.SuccesfulMigrations
-                .Where(m => m.File.FileName.Contains(keyWord))
-                .Include(m => m.File)
-                .ToListAsync();
+                return await _context.FileMigrationsCompleted
+                    .Where(m => m.File.Name.Contains(keyWord))
+                    .Include(m => m.File)
+                    .ToListAsync();
             }
             
         }
