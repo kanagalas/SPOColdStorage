@@ -1,14 +1,12 @@
 ﻿using SPO.ColdStorage.Entities.DBEntities;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Entities.Abstract
 {
+    /// <summary>
+    /// Base database object
+    /// </summary>
     public abstract class BaseDBObject
     {
 

@@ -1,4 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.DBEntities;
 
 namespace SPO.ColdStorage.Web.Controllers
 {
@@ -6,28 +9,30 @@ namespace SPO.ColdStorage.Web.Controllers
     [Route("[controller]")]
     public class MigrationRecordController : ControllerBase
     {
-        private static readonly string[] Summaries = new[]
-        {
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    };
-
         private readonly ILogger<MigrationRecordController> _logger;
+        private readonly SPOColdStorageDbContext _context;
 
-        public MigrationRecordController(ILogger<MigrationRecordController> logger)
+        public MigrationRecordController(ILogger<MigrationRecordController> logger, SPOColdStorageDbContext context)
         {
             _logger = logger;
+            this._context = context;
         }
 
         [HttpGet]
-        public IEnumerable<WeatherForecast> Get()
+        public async Task<ActionResult<IEnumerable<SuccesfulMigrationLog>>> GetSuccesfulMigrations(string keyWord)
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            if (string.IsNullOrEmpty(keyWord))
             {
-                Date = DateTime.Now.AddDays(index),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+                return BadRequest("No search term defined");
+            }
+            else
+            {
+                return await _context.SuccesfulMigrations
+                .Where(m => m.File.FileName.Contains(keyWord))
+                .Include(m => m.File)
+                .ToListAsync();
+            }
+            
         }
     }
 }
