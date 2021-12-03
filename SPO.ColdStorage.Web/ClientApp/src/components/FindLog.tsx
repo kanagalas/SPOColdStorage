@@ -3,25 +3,21 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import moment from 'moment';
 
-interface SharePointFile
-{
+interface SharePointFile {
     url: string;
     web: SharePointWeb;
 }
-interface SharePointWeb
-{
+interface SharePointWeb {
     url: string;
 }
-interface MigrationLog
-{
+interface MigrationLog {
     file: SharePointFile;
     lastModified: Date;
     migrated: Date;
 }
 
-interface SearchLogsState
-{ 
-    searchLogs: Array<MigrationLog>, 
+interface SearchLogsState {
+    searchLogs: Array<MigrationLog>,
     loading: boolean,
     searchTerm: string;
 }
@@ -30,7 +26,7 @@ interface SearchLogsState
 export class FindLog extends React.Component<{}, SearchLogsState> {
     static displayName = FindLog.name;
 
-    constructor(props : any) {
+    constructor(props: any) {
         super(props);
         this.state = { searchLogs: [], loading: false, searchTerm: "" };
     }
@@ -45,30 +41,35 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
         return (
             <div>
                 {logs.length > 0 ?
-                    <table className='table table-striped' aria-labelledby="tabelLabel">
-                    <thead>
-                        <tr>
-                            <th>File name</th>
-                            <th>Web</th>
-                            <th>Last Modified</th>
-                            <th>Migrated</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {logs.map((log : MigrationLog) =>
-                            <tr key={log.file?.url}>
-                                <td>{log.file?.url.split('/').pop()}</td>
-                                <td>{log.file.web.url}</td>
-                                <td>{moment(log.lastModified).format('D-MMM-YYYY HH:mm')}</td>
-                                <td>{moment(log.migrated).format('D-MMM-YYYY HH:mm')}</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-                :
+                    <div>
+                        <p>{logs.length} documents found.</p>
+                        <table className='table table-striped' aria-labelledby="tabelLabel">
+                            <thead>
+                                <tr>
+                                    <th>File name</th>
+                                    <th>Web</th>
+                                    <th>Last Modified</th>
+                                    <th>Migrated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.map((log: MigrationLog) =>
+                                    <tr key={log.file?.url}>
+                                        <td>{log.file?.url.split('/').pop()}</td>
+                                        <td>{log.file.web.url}</td>
+                                        <td>{moment(log.lastModified).format('D-MMM-YYYY HH:mm')}</td>
+                                        <td>{moment(log.migrated).format('D-MMM-YYYY HH:mm')}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+
+                    :
                     <div>No files found</div>
                 }
-                
+
             </div>
         );
     }
@@ -82,9 +83,9 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
             <div>
                 <h1 id="tabelLabel">Migration Logs</h1>
                 <p>Search for a file migrated.</p>
-                <TextField id="outlined-basic" label="Search term" variant="outlined" required 
-                    onChange={e => { this.setState({ searchTerm : e.target.value});}} />
-                <Button variant="outlined" 
+                <TextField id="outlined-basic" label="Search term" variant="standard" required
+                    onChange={e => { this.setState({ searchTerm: e.target.value }); }} />
+                <Button variant="outlined" size="large"
                     onClick={() => {
                         this.populateSearchLogsFromSearch();
                     }}
@@ -97,19 +98,19 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
 
     async populateSearchLogsFromSearch() {
         if (this.state.searchTerm.length > 0) {
-            this.setState({loading: true});
+            this.setState({ loading: true });
             await fetch('migrationrecord?keyWord=' + this.state.searchTerm)
-            .then(async response => {
+                .then(async response => {
 
-                const data = await response.json();
-                console.log(data);
-                this.setState({ searchLogs: data, loading: false });
-                this.setState({loading: false});
-            })
-            .catch(err => {
-                alert('Loading data failed');
-                this.setState({ searchLogs: [], loading: false });
-            });
+                    const data = await response.json();
+                    console.log(data);
+                    this.setState({ searchLogs: data, loading: false });
+                    this.setState({ loading: false });
+                })
+                .catch(err => {
+                    alert('Loading data failed');
+                    this.setState({ searchLogs: [], loading: false });
+                });
         }
     }
 }
