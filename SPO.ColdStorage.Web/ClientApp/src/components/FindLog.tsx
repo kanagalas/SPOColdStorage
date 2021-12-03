@@ -1,14 +1,22 @@
 import React from 'react';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import moment from 'moment';
 
 interface SharePointFile
 {
-    fileName: string;
+    url: string;
+    web: SharePointWeb;
+}
+interface SharePointWeb
+{
+    url: string;
 }
 interface MigrationLog
 {
-    file: SharePointFile
+    file: SharePointFile;
+    lastModified: Date;
+    migrated: Date;
 }
 
 interface SearchLogsState
@@ -41,12 +49,18 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
                     <thead>
                         <tr>
                             <th>File name</th>
+                            <th>Web</th>
+                            <th>Last Modified</th>
+                            <th>Migrated</th>
                         </tr>
                     </thead>
                     <tbody>
                         {logs.map((log : MigrationLog) =>
-                            <tr key={log.file?.fileName}>
-                                <td>{log.file?.fileName}</td>
+                            <tr key={log.file?.url}>
+                                <td>{log.file?.url.split('/').pop()}</td>
+                                <td>{log.file.web.url}</td>
+                                <td>{moment(log.lastModified).format('D-MMM-YYYY HH:mm')}</td>
+                                <td>{moment(log.migrated).format('D-MMM-YYYY HH:mm')}</td>
                             </tr>
                         )}
                     </tbody>

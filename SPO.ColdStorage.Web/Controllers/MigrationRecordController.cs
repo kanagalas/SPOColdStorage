@@ -30,6 +30,8 @@ namespace SPO.ColdStorage.Web.Controllers
                 return await _context.FileMigrationsCompleted
                     .Where(m => m.File.Url.Contains(keyWord))
                     .Include(m => m.File)
+                        .ThenInclude(f=> f.Web)
+                            .ThenInclude(w=> w.Site)
                     .ToListAsync();
             }
             
