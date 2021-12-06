@@ -82,7 +82,7 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
         return (
             <div>
                 <h1 id="tabelLabel">Migration Logs</h1>
-                <p>Search for a file migrated.</p>
+                <p>Search for a file that's been <strong>succesfully</strong> migrated to cold-storage.</p>
                 <TextField id="outlined-basic" label="Search term" variant="standard" required
                     onChange={e => { this.setState({ searchTerm: e.target.value }); }} />
                 <Button variant="outlined" size="large"
