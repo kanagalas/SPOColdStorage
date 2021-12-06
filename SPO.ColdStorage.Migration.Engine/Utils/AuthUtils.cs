@@ -9,9 +9,9 @@ namespace SPO.ColdStorage.Migration.Engine
 {
     public class AuthUtils
     {
-        public static async Task<X509Certificate2> RetrieveKeyVaultCertificate(string name, Config config)
+        static async Task<X509Certificate2> RetrieveKeyVaultCertificate(string name, string tenantId, string clientId, string clientSecret, string keyVaultUrl)
         {
-            var client = new SecretClient(vaultUri: new Uri(config.KeyVaultUrl), credential: new ClientSecretCredential(config.AzureAdConfig.TenantId, config.AzureAdConfig.ClientID, config.AzureAdConfig.Secret));
+            var client = new SecretClient(vaultUri: new Uri(keyVaultUrl), credential: new ClientSecretCredential(tenantId, clientId, clientSecret));
 
             var secret = await client.GetSecretAsync(name);
 
@@ -20,14 +20,44 @@ namespace SPO.ColdStorage.Migration.Engine
 
         }
 
-        public async static Task<ClientContext> GetClientContext(Config config, string siteUrl)
+        public async static Task<ClientContext> GetClientContext(string siteUrl, string tenantId, string clientId, string clientSecret, string keyVaultUrl, string baseServerAddress)
         {
-            var appRegistrationCert = await AuthUtils.RetrieveKeyVaultCertificate("AzureAutomationSPOAccess", config);
-            var app = ConfidentialClientApplicationBuilder.Create(config.AzureAdConfig.ClientID)
+            if (string.IsNullOrEmpty(siteUrl))
+            {
+                throw new ArgumentException($"'{nameof(siteUrl)}' cannot be null or empty.", nameof(siteUrl));
+            }
+
+            if (string.IsNullOrEmpty(tenantId))
+            {
+                throw new ArgumentException($"'{nameof(tenantId)}' cannot be null or empty.", nameof(tenantId));
+            }
+
+            if (string.IsNullOrEmpty(clientId))
+            {
+                throw new ArgumentException($"'{nameof(clientId)}' cannot be null or empty.", nameof(clientId));
+            }
+
+            if (string.IsNullOrEmpty(clientSecret))
+            {
+                throw new ArgumentException($"'{nameof(clientSecret)}' cannot be null or empty.", nameof(clientSecret));
+            }
+
+            if (string.IsNullOrEmpty(keyVaultUrl))
+            {
+                throw new ArgumentException($"'{nameof(keyVaultUrl)}' cannot be null or empty.", nameof(keyVaultUrl));
+            }
+
+            if (string.IsNullOrEmpty(baseServerAddress))
+            {
+                throw new ArgumentException($"'{nameof(baseServerAddress)}' cannot be null or empty.", nameof(baseServerAddress));
+            }
+
+            var appRegistrationCert = await AuthUtils.RetrieveKeyVaultCertificate("AzureAutomationSPOAccess", tenantId, clientId, clientSecret, keyVaultUrl);
+            var app = ConfidentialClientApplicationBuilder.Create(clientId)
                                                   .WithCertificate(appRegistrationCert)
-                                                  .WithAuthority($"https://login.microsoftonline.com/{config.AzureAdConfig.TenantId}")
+                                                  .WithAuthority($"https://login.microsoftonline.com/{tenantId}")
                                                   .Build();
-            var scopes = new string[] { $"{config.BaseServerAddress}/.default" };
+            var scopes = new string[] { $"{baseServerAddress}/.default" };
             var result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
 
 
@@ -38,6 +68,12 @@ namespace SPO.ColdStorage.Migration.Engine
             };
 
             return ctx;
+        }
+
+        public static async Task<ClientContext> GetClientContext(Config config, string siteUrl)
+        {
+            return await GetClientContext(siteUrl, config.AzureAdConfig.TenantId!, config.AzureAdConfig.ClientID!,
+                config.AzureAdConfig.Secret!, config.KeyVaultUrl, config.BaseServerAddress);
         }
     }
 }
