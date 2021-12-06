@@ -65,7 +65,6 @@ namespace SPO.ColdStorage.Migration.Engine
         private async Task ProcessWeb(Web web)
         {
             _spClient.Load(web.Lists);
-            _spClient.Load(web.Webs);
             await _spClient.ExecuteQueryAsync();
 
             foreach (var list in web.Lists)
@@ -84,16 +83,37 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             await EnsureLoaded();
             _spClient.Load(list, l=> l.BaseType);
-            _spClient.Load(list.RootFolder);
-            _spClient.Load(list, l => l.RootFolder.Name);
             await _spClient.ExecuteQueryAsync();
 
             var results = new List<SharePointFileVersionInfo>();
 
-            var listItems = list.GetItems(new CamlQuery());
-            _spClient.Load(listItems);
-            await _spClient.ExecuteQueryAsync();
+            var camlQuery = new CamlQuery();
+            var listItems = list.GetItems(camlQuery);
 
+            if (list.BaseType == BaseType.GenericList)
+            {
+                // Load attachments
+                _spClient.Load(listItems,
+                                 items => items.Include(
+                                    item => item.Id,
+                                    item => item.AttachmentFiles,
+                                    item => item["Modified"],
+                                    item => item.File.Exists,
+                                    item => item.File.ServerRelativeUrl));
+            }
+            else if (list.BaseType == BaseType.DocumentLibrary)
+            {
+                // Load docs
+                _spClient.Load(listItems,
+                                 items => items.Include(
+                                    item => item.Id,
+                                    item => item.FileSystemObjectType,
+                                    item => item["Modified"],
+                                    item => item.File.Exists,
+                                    item => item.File.ServerRelativeUrl));
+            }
+
+            await _spClient.ExecuteQueryAsync();
 
             foreach (var item in listItems)
             {
@@ -122,10 +142,6 @@ namespace SPO.ColdStorage.Migration.Engine
             {
                 case FileSystemObjectType.File:
 
-                    _spClient.Load(docListItem.File);
-                    _spClient.Load(docListItem.File, i => i.ServerRelativeUrl);
-                    await _spClient.ExecuteQueryAsync();
-
                     if (docListItem.File.Exists)
                     {
                         var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl);
@@ -148,9 +164,6 @@ namespace SPO.ColdStorage.Migration.Engine
         private async Task<List<SharePointFileVersionInfo>> ProcessListItemAttachments(ListItem item)
         {
             var attachmentsResults = new List<SharePointFileVersionInfo>();
-
-            _spClient.Load(item.AttachmentFiles);
-            await _spClient.ExecuteQueryAsync();
 
             foreach (var attachment in item.AttachmentFiles)
             {

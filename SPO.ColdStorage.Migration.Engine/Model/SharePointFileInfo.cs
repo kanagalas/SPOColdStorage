@@ -29,16 +29,9 @@ namespace SPO.ColdStorage.Migration.Engine.Model
     public class SharePointFileVersionInfo : SharePointFileLocationInfo
     {
         public DateTime LastModified { get; set; } = DateTime.MinValue;
-
+        
+        [JsonIgnore]
         public override bool IsValidInfo => base.IsValidInfo && this.LastModified > DateTime.MinValue;
     }
 
-    public class SharePointFileInfoEventArgs : EventArgs
-    {
-        public SharePointFileInfoEventArgs()
-        {
-            this.SharePointFileInfo = new SharePointFileVersionInfo();
-        }
-        public SharePointFileVersionInfo SharePointFileInfo { get; set; }
-    }
 }
