@@ -55,7 +55,12 @@ namespace SPO.ColdStorage.Tests
             Assert.IsFalse(halfEmptyMsg.IsValidInfo);
 
 
-            var legitMsg = new SharePointFileLocationInfo { FileRelativePath = "/whatever", SiteUrl = "https://m365x352268.sharepoint.com" };
+            var legitMsg = new SharePointFileLocationInfo 
+            { 
+                FileRelativePath = "/whatever", 
+                SiteUrl = "https://m365x352268.sharepoint.com", 
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1" 
+            };
             Assert.IsTrue(legitMsg.IsValidInfo);
         }
     }

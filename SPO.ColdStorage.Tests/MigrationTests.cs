@@ -111,8 +111,9 @@ namespace SPO.ColdStorage.Tests
             var needsMigratingBeforeMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
             Assert.IsTrue(needsMigratingBeforeMigration);
 
-            // Migrate the file to az blob
+            // Migrate the file to az blob & save result to SQL 
             await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
+            await migrator.SaveSucessfulFileMigrationToSql(discoveredFile!);
 
             // Now SharePointFileNeedsMigrating should be false
             var needsMigratingPostMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
@@ -124,10 +125,13 @@ namespace SPO.ColdStorage.Tests
 
             // Now the file's been updated, it should need a new migration
             var needsMigratingPostEdit = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
+
             Assert.IsTrue(needsMigratingPostEdit);
 
-            // Migrate again edited file & check status one last time
+            // Migrate again edited file, save to SQL & check status one last time
             await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
+            await migrator.SaveSucessfulFileMigrationToSql(discoveredFile!);
+
             needsMigratingPostMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
             Assert.IsFalse(needsMigratingPostMigration);
         }

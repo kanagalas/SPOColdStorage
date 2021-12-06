@@ -49,7 +49,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
         public static string GetTempFileNameAndCreateDir(SharePointFileLocationInfo sharePointFile)
         {
-            var tempFileName = Path.GetTempPath().TrimEnd(@"\".ToCharArray()) + sharePointFile.FileRelativePath.Replace("/", @"\");
+            var tempFileName = Path.GetTempPath() + DateTime.Now.Ticks + @"\" + sharePointFile.FileRelativePath.Replace("/", @"\");
             var tempFileInfo = new FileInfo(tempFileName);
             Directory.CreateDirectory(tempFileInfo.DirectoryName!);
 

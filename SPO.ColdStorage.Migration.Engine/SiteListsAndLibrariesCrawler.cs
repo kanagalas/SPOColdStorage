@@ -23,10 +23,34 @@ namespace SPO.ColdStorage.Migration.Engine
             this._callback = callback;  
         }
 
+        async Task EnsureLoaded()
+        {
+            var loaded = false;
+            try
+            {
+                // Test if this will blow up
+                Console.WriteLine(_spClient.Web.Url);
+                Console.WriteLine(_spClient.Site.Url);
+                loaded = true;
+            }
+            catch (PropertyOrFieldNotInitializedException)
+            {
+                loaded = false;
+            }
+
+            if (!loaded)
+            {
+                _spClient.Load(_spClient.Web);
+                _spClient.Load(_spClient.Site, s => s.Url);
+                await _spClient.ExecuteQueryAsync();
+            }
+        }
+
+
         public async Task CrawlContextWeb()
         {
             var rootWeb = _spClient.Web;
-            _spClient.Load(rootWeb);
+            await EnsureLoaded();
             _spClient.Load(rootWeb.Webs);
             await _spClient.ExecuteQueryAsync();
 
@@ -46,8 +70,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
             foreach (var list in web.Lists)
             {
+                _spClient.Load(list, l=> l.IsSystemList);
+                await _spClient.ExecuteQueryAsync();
 
-                if (!list.Hidden)
+                if (!list.Hidden && !list.IsSystemList)
                 {
                     await CrawlList(list);
                 }
@@ -56,6 +82,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         public async Task<List<SharePointFileVersionInfo>> CrawlList(List list)
         {
+            await EnsureLoaded();
             _spClient.Load(list, l=> l.BaseType);
             _spClient.Load(list.RootFolder);
             _spClient.Load(list, l => l.RootFolder.Name);
@@ -149,7 +176,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     FileRelativePath = url,
                     LastModified = dt,
                     WebUrl = _spClient.Web.Url,
-                    SiteUrl = _spClient.Url
+                    SiteUrl = _spClient.Site.Url
                 };
             }
             else
