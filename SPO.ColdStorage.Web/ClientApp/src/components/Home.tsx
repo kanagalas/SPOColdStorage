@@ -8,7 +8,15 @@ interface HomeState {
   blobItems: BlobItem[],
   currentDirs: string[],
   storagePrefix: string,
-  loading: boolean
+  loading: boolean,
+  storageInfo: StorageInfo | null
+}
+
+interface StorageInfo
+{
+  sharedAccessToken : string,
+  accountURI: string,
+  containerName: string
 }
 
 export class Home extends Component<{}, HomeState> {
@@ -21,24 +29,47 @@ export class Home extends Component<{}, HomeState> {
       client: null,
       storagePrefix: "",
       currentDirs: [],
-      loading: true
+      loading: true,
+      storageInfo: null
     };
   }
 
   componentDidMount() {
-    // Create a new BlobServiceClient
-    const blobServiceClient = new BlobServiceClient('https://spocoldstoragedev.blob.core.windows.net/?sv=2020-08-04&ss=b&srt=co&sp=rwdlacitfx&se=2022-01-01T18:21:35Z&st=2021-12-07T10:21:35Z&spr=https&sig=%2FbjI%2FfgmVegqwsKdUwlPCvjdHqFu24h2gOA4HUEKrGU%3D');
 
-    const containerName = "spexports";
+    // Load storage config first
+    this.getStorageConfig()
+      .then(storageConfigInfo => {
+        // Create a new BlobServiceClient based on config loaded from our own API
+        const blobServiceClient = new BlobServiceClient(`${storageConfigInfo.accountURI}${storageConfigInfo.sharedAccessToken}`);
 
-    // Get a container client from the BlobServiceClient
-    const client = blobServiceClient.getContainerClient(containerName);
+        const containerName = storageConfigInfo.containerName;
+        const client = blobServiceClient.getContainerClient(containerName);
 
-    this.setState({ client: client });
+        this.setState({ client: client });
 
-    this.listFiles(client, "")
-      .then(() => this.setState({ loading: false }))
-      .catch(() => alert('Failed to load blob info'));
+        // Get blobs for root folder
+        this.listFiles(client, "")
+          .then(() => this.setState({ loading: false }))
+          .catch(() => alert('Failed to load blob info from Azure blob'));
+      });
+  }
+
+  async getStorageConfig() : Promise<StorageInfo>
+  {
+    return await fetch('migrationrecord/GetStorageInfo')
+      .then(async response => {
+
+          const data : StorageInfo = await response.json();
+          console.log(data);
+          this.setState({ storageInfo: data});
+          return Promise.resolve(data);
+      })
+      .catch(err => {
+          alert('Loading storage data failed');
+          this.setState({ storageInfo: null, loading: false });
+
+          return Promise.reject();
+      });
   }
 
   async listFiles(client: ContainerClient, prefix: string) {
@@ -78,10 +109,8 @@ export class Home extends Component<{}, HomeState> {
     this.listFiles(this.state.client!, fullPath);
   }
 
-
   render() {
-
-    const dirs = this.state.storagePrefix.split("/");
+    const breadcumbDirs = this.state.storagePrefix.split("/");
 
     return (
       <div>
@@ -94,10 +123,12 @@ export class Home extends Component<{}, HomeState> {
               <div id="breadcrumb-file-nav">
                 <span>
                   <span>Home</span>
-                  {dirs.map((dir, dirIdx) => {
-                    if (dir) {
+                  {breadcumbDirs.map((breadcumbDir, dirIdx) => {
+                    if (breadcumbDir) {
                       return <span>&gt;
-                        <button onClick={() => this.breadcrumbDirClick(dirIdx, dirs)} className="link-button">{dir}</button>
+                        <button onClick={() => this.breadcrumbDirClick(dirIdx, breadcumbDirs)} className="link-button">
+                          {breadcumbDir}
+                        </button>
                       </span>
                     }
                     else
