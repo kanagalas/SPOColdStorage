@@ -12,5 +12,11 @@ namespace SPO.ColdStorage.Entities.DBEntities
         public int WebId { get; set; }
 
         public Web Web { get; set; } = null!;
+
+        [Column("last_modified")]
+        public DateTime LastModified { get; set; } = DateTime.MinValue;
+
+        [Column("last_modified_by")]
+        public string LastModifiedBy { get; set; } = string.Empty;
     }
 }

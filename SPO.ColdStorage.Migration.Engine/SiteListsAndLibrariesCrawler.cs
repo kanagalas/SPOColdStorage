@@ -98,6 +98,7 @@ namespace SPO.ColdStorage.Migration.Engine
                                     item => item.Id,
                                     item => item.AttachmentFiles,
                                     item => item["Modified"],
+                                    item => item["Editor"],
                                     item => item.File.Exists,
                                     item => item.File.ServerRelativeUrl));
             }
@@ -109,6 +110,7 @@ namespace SPO.ColdStorage.Migration.Engine
                                     item => item.Id,
                                     item => item.FileSystemObjectType,
                                     item => item["Modified"],
+                                    item => item["Editor"],
                                     item => item.File.Exists,
                                     item => item.File.ServerRelativeUrl));
             }
@@ -184,13 +186,23 @@ namespace SPO.ColdStorage.Migration.Engine
             var dt = DateTime.MinValue;
             if (DateTime.TryParse(item.FieldValues["Modified"]?.ToString(), out dt))
             {
-                return new SharePointFileVersionInfo
+                var authorFieldObj = item.FieldValues["Editor"];
+                if (authorFieldObj != null)
                 {
-                    FileRelativePath = url,
-                    LastModified = dt,
-                    WebUrl = _spClient.Web.Url,
-                    SiteUrl = _spClient.Site.Url
-                };
+                    var authorVal = (FieldUserValue)authorFieldObj;
+                    return new SharePointFileVersionInfo
+                    {
+                        Author = !string.IsNullOrEmpty(authorVal.Email) ? authorVal.Email : authorVal.LookupValue,
+                        FileRelativePath = url,
+                        LastModified = dt,
+                        WebUrl = _spClient.Web.Url,
+                        SiteUrl = _spClient.Site.Url
+                    };
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(item), "Can't find author column");
+                }
             }
             else
             {

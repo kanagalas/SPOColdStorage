@@ -6,13 +6,14 @@ import moment from 'moment';
 interface SharePointFile {
     url: string;
     web: SharePointWeb;
+    lastModified: Date;
 }
 interface SharePointWeb {
     url: string;
+    lastModifiedBy : string;
 }
 interface MigrationLog {
     file: SharePointFile;
-    lastModified: Date;
     migrated: Date;
 }
 
@@ -57,7 +58,7 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
                                     <tr key={log.file?.url}>
                                         <td>{log.file?.url.split('/').pop()}</td>
                                         <td>{log.file.web.url}</td>
-                                        <td>{moment(log.lastModified).format('D-MMM-YYYY HH:mm')}</td>
+                                        <td>{moment(log.file.lastModified).format('D-MMM-YYYY HH:mm')}</td>
                                         <td>{moment(log.migrated).format('D-MMM-YYYY HH:mm')}</td>
                                     </tr>
                                 )}

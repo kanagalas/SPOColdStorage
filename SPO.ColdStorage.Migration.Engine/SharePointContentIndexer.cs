@@ -2,7 +2,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Migration;
@@ -19,7 +18,7 @@ namespace SPO.ColdStorage.Migration.Engine
         private BlobContainerClient? _containerClient;
         private SharePointFileMigrator _sharePointFileMigrator;
 
-        public SharePointContentIndexer(Config config, DebugTracer debugTracer) :base(config, debugTracer)
+        public SharePointContentIndexer(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ConnectionStrings.ServiceBus);
             _tracer.TrackTrace($"Sending new SharePoint files to migrate to service-bus '{sbConnectionProps.Endpoint}'.");
@@ -43,8 +42,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 var sitesToMigrate = await db.TargetSharePointSites.ToListAsync();
                 foreach (var s in sitesToMigrate)
                 {
-                        await StartSiteMigration(s.RootURL);
-                    
+                    await StartSiteMigration(s.RootURL);
                 }
             }
         }

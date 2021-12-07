@@ -28,6 +28,8 @@ namespace SPO.ColdStorage.Migration.Engine.Model
 
     public class SharePointFileVersionInfo : SharePointFileLocationInfo
     {
+        public string Author { get; set; } = string.Empty;
+
         public DateTime LastModified { get; set; } = DateTime.MinValue;
         
         [JsonIgnore]

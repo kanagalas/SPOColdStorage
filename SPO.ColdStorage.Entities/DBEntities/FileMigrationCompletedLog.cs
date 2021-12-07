@@ -9,8 +9,6 @@ namespace SPO.ColdStorage.Entities.DBEntities
         [Column("migrated")]
         public DateTime Migrated { get; set; } = DateTime.MinValue;
 
-        [Column("last_modified")]
-        public DateTime LastModified { get; set; } = DateTime.MinValue;
 
     }
 }

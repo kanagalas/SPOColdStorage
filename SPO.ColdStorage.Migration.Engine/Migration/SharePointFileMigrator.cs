@@ -57,7 +57,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
                 if (log != null)
                 {
-                    logExistsAndIsForSameVersion = log.LastModified == sharePointFileInfo.LastModified;
+                    logExistsAndIsForSameVersion = log.File.LastModified == sharePointFileInfo.LastModified;
                 }
             }
             bool haveRightFile = logExistsAndIsForSameVersion && fileExistsInAzureBlob;
@@ -74,7 +74,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             var downloader = new SharePointFileDownloader(ctx, _config, _tracer);
             var tempFileNameAndSize = await downloader.DownloadFileToTempDir(fileToMigrate);
 
-            // Index file properties - EDIT: ignore. Search indexing to be done directly on the blobs
+            // Index file properties - EDIT: ignore for now. Search indexing to be done directly on the blobs
             //var searchIndexer = new SharePointFileSearchProcessor(_config, _tracer);
             //await searchIndexer.ProcessFileContent(msg);
 
@@ -100,6 +100,9 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         {
             var migratedFile = await GetDbFileForFileInfo(fileMigrated);
 
+            // Update file last modified
+            migratedFile.LastModified = fileMigrated.LastModified;
+
             // Add log
             var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
             if (log == null)
@@ -108,7 +111,6 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 _db.FileMigrationsCompleted.Add(log);
             }
             log.Migrated = DateTime.Now;
-            log.LastModified = fileMigrated.LastModified;
             await _db.SaveChangesAsync();
         }
 
@@ -152,18 +154,20 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             }
 
             // Find/create file
-            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullUrl.ToLower()).FirstOrDefaultAsync();
-            if (migratedFile == null)
+            var migratedFileRecord = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullUrl.ToLower()).FirstOrDefaultAsync();
+            if (migratedFileRecord == null)
             {
-                migratedFile = new Entities.DBEntities.File
+                migratedFileRecord = new Entities.DBEntities.File
                 {
                     Url = fileMigrated.FullUrl.ToLower(),
                     Web = fileWeb
                 };
-                _db.Files.Append(migratedFile);
+                _db.Files.Append(migratedFileRecord);
             }
+            migratedFileRecord.LastModified = fileMigrated.LastModified;
+            migratedFileRecord.LastModifiedBy = fileMigrated.Author;
 
-            return migratedFile;
+            return migratedFileRecord;
         }
 
 
