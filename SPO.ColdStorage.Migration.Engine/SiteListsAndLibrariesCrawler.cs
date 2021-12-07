@@ -10,13 +10,13 @@ namespace SPO.ColdStorage.Migration.Engine
     {
         private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
-        public event Func<SharePointFileVersionInfo, Task>? _callback;
+        public event Func<SharePointFileInfo, Task>? _callback;
 
         public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer) : this(clientContext, tracer, null)
         {
         }
 
-        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer, Func<SharePointFileVersionInfo, Task>? callback)
+        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer, Func<SharePointFileInfo, Task>? callback)
         {
             this._spClient = clientContext;
             this._tracer = tracer;
@@ -79,13 +79,13 @@ namespace SPO.ColdStorage.Migration.Engine
             }
         }
 
-        public async Task<List<SharePointFileVersionInfo>> CrawlList(List list)
+        public async Task<List<SharePointFileInfo>> CrawlList(List list)
         {
             await EnsureLoaded();
             _spClient.Load(list, l => l.BaseType);
             await _spClient.ExecuteQueryAsync();
 
-            var results = new List<SharePointFileVersionInfo>();
+            var results = new List<SharePointFileInfo>();
 
             var camlQuery = new CamlQuery();
             var listItems = list.GetItems(camlQuery);
@@ -119,7 +119,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
             foreach (var item in listItems)
             {
-                SharePointFileVersionInfo? foundFileInfo = null;
+                SharePointFileInfo? foundFileInfo = null;
                 if (list.BaseType == BaseType.GenericList)
                 {
                     results.AddRange(await ProcessListItemAttachments(item));
@@ -138,7 +138,7 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process document library item.
         /// </summary>
-        private async Task<SharePointFileVersionInfo?> ProcessDocLibItem(ListItem docListItem)
+        private async Task<SharePointFileInfo?> ProcessDocLibItem(ListItem docListItem)
         {
             switch (docListItem.FileSystemObjectType)
             {
@@ -163,9 +163,9 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process custom list item attachments
         /// </summary>
-        private async Task<List<SharePointFileVersionInfo>> ProcessListItemAttachments(ListItem item)
+        private async Task<List<SharePointFileInfo>> ProcessListItemAttachments(ListItem item)
         {
-            var attachmentsResults = new List<SharePointFileVersionInfo>();
+            var attachmentsResults = new List<SharePointFileInfo>();
 
             foreach (var attachment in item.AttachmentFiles)
             {
@@ -181,7 +181,7 @@ namespace SPO.ColdStorage.Migration.Engine
         }
 
 
-        SharePointFileVersionInfo GetSharePointFileInfo(ListItem item, string url)
+        SharePointFileInfo GetSharePointFileInfo(ListItem item, string url)
         {
             var dt = DateTime.MinValue;
             if (DateTime.TryParse(item.FieldValues["Modified"]?.ToString(), out dt))
@@ -190,7 +190,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 if (authorFieldObj != null)
                 {
                     var authorVal = (FieldUserValue)authorFieldObj;
-                    return new SharePointFileVersionInfo
+                    return new SharePointFileInfo
                     {
                         Author = !string.IsNullOrEmpty(authorVal.Email) ? authorVal.Email : authorVal.LookupValue,
                         FileRelativePath = url,

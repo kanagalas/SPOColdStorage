@@ -1,10 +1,5 @@
 ﻿using Azure.Search.Documents.Indexes;
 using SPO.ColdStorage.Migration.Engine.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Migration.Engine.Model
 {
@@ -13,7 +8,7 @@ namespace SPO.ColdStorage.Migration.Engine.Model
         public FileSearchModel()
         {
         }
-        public FileSearchModel(SharePointFileLocationInfo sharePointFileInfo)
+        public FileSearchModel(SharePointFileInfo sharePointFileInfo)
         {
 
             var fileNameArray = sharePointFileInfo.FileRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);

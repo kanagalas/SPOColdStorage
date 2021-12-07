@@ -65,7 +65,7 @@ namespace SPO.ColdStorage.Migration.Engine
         async Task MessageHandler(ProcessMessageEventArgs args)
         {
             string body = args.Message.Body.ToString();
-            var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileVersionInfo>(body);
+            var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileInfo>(body);
             if (msg != null && msg.IsValidInfo)
             {
                 _tracer.TrackTrace($"Started migration for: {msg.FileRelativePath}");
@@ -91,7 +91,7 @@ namespace SPO.ColdStorage.Migration.Engine
             return Task.CompletedTask;
         }
 
-        private async Task StartFileMigrationAsync(SharePointFileVersionInfo sharePointFileToMigrate)
+        private async Task StartFileMigrationAsync(SharePointFileInfo sharePointFileToMigrate)
         {
             using (var sharePointFileMigrator = new SharePointFileMigrator(_config, _tracer))
             {

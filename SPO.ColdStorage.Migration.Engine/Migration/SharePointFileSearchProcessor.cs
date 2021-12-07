@@ -14,7 +14,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         {
         }
 
-        public async Task ProcessFileContent(SharePointFileLocationInfo sharePointFileInfo)
+        public async Task ProcessFileContent(SharePointFileInfo sharePointFileInfo)
         {
             var indexClient = CreateSearchIndexClient();
 

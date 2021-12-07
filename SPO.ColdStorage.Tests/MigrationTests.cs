@@ -136,7 +136,7 @@ namespace SPO.ColdStorage.Tests
             Assert.IsFalse(needsMigratingPostMigration);
         }
 
-        async Task<SharePointFileVersionInfo?> GetFromIndex(ClientContext ctx, string fileTitle, List targetList)
+        async Task<SharePointFileInfo?> GetFromIndex(ClientContext ctx, string fileTitle, List targetList)
         {
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
             var allResults = await crawler.CrawlList(targetList);
@@ -147,7 +147,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task SharePointFileDownloaderTests()
         {
-            var testMsg = new SharePointFileLocationInfo 
+            var testMsg = new SharePointFileInfo
             { 
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite, 
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
@@ -161,7 +161,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task SharePointFileSearchProcessorTests()
         {
-            var testMsg = new SharePointFileLocationInfo
+            var testMsg = new SharePointFileInfo
             {
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite,
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
@@ -174,7 +174,7 @@ namespace SPO.ColdStorage.Tests
         [TestMethod]
         public async Task BlobStorageFileUploadTests()
         {
-            var testMsg = new SharePointFileLocationInfo
+            var testMsg = new SharePointFileInfo
             {
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite,
                 FileRelativePath = $"/sites/MigrationHost/Unit tests/textfile{DateTime.Now.Ticks}.txt"

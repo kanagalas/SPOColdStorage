@@ -2,7 +2,7 @@
 
 namespace SPO.ColdStorage.Migration.Engine.Model
 {
-    public class SharePointFileLocationInfo
+    public class SharePointFileInfo 
     {
         /// <summary>
         /// Example: https://m365x352268.sharepoint.com/sites/MigrationHost
@@ -19,21 +19,15 @@ namespace SPO.ColdStorage.Migration.Engine.Model
         /// </summary>
         public string FileRelativePath { get; set; } = string.Empty;
 
-        [JsonIgnore]
-        public string FullUrl => SiteUrl + FileRelativePath;
-
-        [JsonIgnore]
-        public virtual bool IsValidInfo => !string.IsNullOrEmpty(FileRelativePath) && !string.IsNullOrEmpty(SiteUrl) && !string.IsNullOrEmpty(WebUrl);
-    }
-
-    public class SharePointFileVersionInfo : SharePointFileLocationInfo
-    {
         public string Author { get; set; } = string.Empty;
 
         public DateTime LastModified { get; set; } = DateTime.MinValue;
         
         [JsonIgnore]
-        public override bool IsValidInfo => base.IsValidInfo && this.LastModified > DateTime.MinValue;
-    }
+        public bool IsValidInfo => !string.IsNullOrEmpty(FileRelativePath) && !string.IsNullOrEmpty(SiteUrl) && !string.IsNullOrEmpty(WebUrl) && this.LastModified > DateTime.MinValue;
 
+        [JsonIgnore]
+        public string FullUrl => SiteUrl + FileRelativePath;
+
+    }
 }

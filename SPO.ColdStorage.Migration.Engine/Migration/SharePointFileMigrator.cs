@@ -28,7 +28,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Queue file for migrator to pick-up & migrate
         /// </summary>
-        public async Task QueueSharePointFileMigrationIfNeeded(SharePointFileVersionInfo sharePointFileInfo, BlobContainerClient containerClient)
+        public async Task QueueSharePointFileMigrationIfNeeded(SharePointFileInfo sharePointFileInfo, BlobContainerClient containerClient)
         {
             bool needsMigrating = await DoesSharePointFileNeedMigrating(sharePointFileInfo, containerClient);
             if (needsMigrating)
@@ -43,7 +43,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Checks if a given file in SharePoint exists in blob & has the latest version
         /// </summary>
-        public async Task<bool> DoesSharePointFileNeedMigrating(SharePointFileVersionInfo sharePointFileInfo, BlobContainerClient containerClient)
+        public async Task<bool> DoesSharePointFileNeedMigrating(SharePointFileInfo sharePointFileInfo, BlobContainerClient containerClient)
         {
             // Check if blob exists in account
             var fileRef = containerClient.GetBlobClient(sharePointFileInfo.FileRelativePath);
@@ -68,7 +68,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Download from SP and upload to blob-storage
         /// </summary>
-        public async Task<long> MigrateFromSharePointToBlobStorage(SharePointFileVersionInfo fileToMigrate, ClientContext ctx)
+        public async Task<long> MigrateFromSharePointToBlobStorage(SharePointFileInfo fileToMigrate, ClientContext ctx)
         {
             // Download from SP to local
             var downloader = new SharePointFileDownloader(ctx, _config, _tracer);
@@ -96,7 +96,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             return tempFileNameAndSize.Item2;
         }
 
-        public async Task SaveSucessfulFileMigrationToSql(SharePointFileVersionInfo fileMigrated)
+        public async Task SaveSucessfulFileMigrationToSql(SharePointFileInfo fileMigrated)
         {
             var migratedFile = await GetDbFileForFileInfo(fileMigrated);
 
@@ -114,7 +114,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             await _db.SaveChangesAsync();
         }
 
-        public async Task SaveErrorForFileMigrationToSql(Exception ex, SharePointFileVersionInfo fileNotMigrated)
+        public async Task SaveErrorForFileMigrationToSql(Exception ex, SharePointFileInfo fileNotMigrated)
         {
             var errorFile = await GetDbFileForFileInfo(fileNotMigrated);
 
@@ -129,7 +129,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
             await _db.SaveChangesAsync();
         }
-        async Task<Entities.DBEntities.File> GetDbFileForFileInfo(SharePointFileVersionInfo fileMigrated)
+        async Task<Entities.DBEntities.File> GetDbFileForFileInfo(SharePointFileInfo fileMigrated)
         {
             // Find/create web & site
             var fileSite = await _db.Sites.Where(f => f.Url.ToLower() == fileMigrated.SiteUrl.ToLower()).FirstOrDefaultAsync();
