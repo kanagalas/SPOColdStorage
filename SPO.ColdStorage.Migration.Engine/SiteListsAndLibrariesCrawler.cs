@@ -20,7 +20,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             this._spClient = clientContext;
             this._tracer = tracer;
-            this._callback = callback;  
+            this._callback = callback;
         }
 
         async Task EnsureLoaded()
@@ -29,8 +29,8 @@ namespace SPO.ColdStorage.Migration.Engine
             try
             {
                 // Test if this will blow up
-                Console.WriteLine(_spClient.Web.Url);
-                Console.WriteLine(_spClient.Site.Url);
+                var url = _spClient.Web.Url;
+                url = _spClient.Site.Url;
                 loaded = true;
             }
             catch (PropertyOrFieldNotInitializedException)
@@ -69,7 +69,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
             foreach (var list in web.Lists)
             {
-                _spClient.Load(list, l=> l.IsSystemList);
+                _spClient.Load(list, l => l.IsSystemList);
                 await _spClient.ExecuteQueryAsync();
 
                 if (!list.Hidden && !list.IsSystemList)
@@ -82,7 +82,7 @@ namespace SPO.ColdStorage.Migration.Engine
         public async Task<List<SharePointFileVersionInfo>> CrawlList(List list)
         {
             await EnsureLoaded();
-            _spClient.Load(list, l=> l.BaseType);
+            _spClient.Load(list, l => l.BaseType);
             await _spClient.ExecuteQueryAsync();
 
             var results = new List<SharePointFileVersionInfo>();
