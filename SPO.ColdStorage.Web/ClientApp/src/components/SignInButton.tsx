@@ -15,6 +15,6 @@ export const SignInButton = () => {
     const { instance } = useMsal();
 
     return (
-        <button className="ml-auto" onClick={() => handleLogin(instance)}>Sign in using Popup</button>
+        <button className="ml-auto" onClick={() => handleLogin(instance)}>Sign in to Azure AD</button>
     );
 }

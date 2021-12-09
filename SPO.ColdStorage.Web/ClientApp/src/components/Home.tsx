@@ -1,4 +1,4 @@
-import { BlobItem, BlobServiceClient, ContainerClient } from '@azure/storage-blob';
+import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { BlobFileList } from './BlobFileList';
 import './NavMenu.css';
 import React, { useState } from 'react';
@@ -16,9 +16,6 @@ export function Home() {
 
   const [client, setClient] = React.useState<ContainerClient | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
-  const [blobItems, setBlobItems] = React.useState<BlobItem[] | null>(null);
-  const [currentDirs, setCurrentDirs] = React.useState<string[]>([]);
-  const [storagePrefix, setStoragePrefix] = React.useState<string>("");
 
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
@@ -46,46 +43,6 @@ export function Home() {
     });
   }, [accessToken]);
 
-  
-  async function listFiles(client: ContainerClient, prefix: string) {
-
-    let dirs: string[] = [];
-    let blobs: BlobItem[] = [];
-
-    console.log("Browsing blobs with prefix: " + prefix);
-
-    try {
-      let iter = client!.listBlobsByHierarchy("/", { prefix: prefix });
-
-      for await (const item of iter) {
-        if (item.kind === "prefix") {
-          dirs.push(item.name);
-        } else {
-          blobs.push(item);
-        }
-      }
-
-      setBlobItems(blobs);
-      setCurrentDirs(dirs);
-      setStoragePrefix(prefix);
-
-      return Promise.resolve();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-  };
-
-  function breadcrumbDirClick(dirIdx: number, allDirs: string[]) {
-    let fullPath: string = "";
-
-    for (let index = 0; index <= dirIdx; index++) {
-      const thisDir = allDirs[index];
-      fullPath += `${thisDir}/`;
-    }
-
-    listFiles(client!, fullPath);
-  }
-
   const RequestAccessToken = React.useCallback(() => {
     const request = {
       ...loginRequest,
@@ -109,33 +66,25 @@ export function Home() {
       RequestAccessToken();
     }
 
-    if (accessToken && !blobItems) {
-      setLoading(true);
+    if (accessToken) {
 
       // Load storage config first
       getStorageConfig()
       .then((storageConfigInfo: any) => {
+        console.log('Got storage config from site API')
+
         // Create a new BlobServiceClient based on config loaded from our own API
         const blobServiceClient = new BlobServiceClient(`${storageConfigInfo.accountURI}${storageConfigInfo.sharedAccessToken}`);
 
         const containerName = storageConfigInfo.containerName;
-        const client = blobServiceClient.getContainerClient(containerName);
+        const blobStorageClient = blobServiceClient.getContainerClient(containerName);
 
-        setClient(client);
-
-        // Get blobs for root folder
-        listFiles(client, "")
-          .then(() => setLoading(false));
+        setClient(blobStorageClient);
       });
     }
-  }, [accessToken, RequestAccessToken, blobItems, getStorageConfig, isAuthenticated]);
+  }, [accessToken, RequestAccessToken, getStorageConfig, isAuthenticated]);
 
-
-
-  const name = accounts[0] && accounts[0].name;
-
-    const breadcumbDirs = storagePrefix?.split("/") ?? "";
-
+    const name = accounts[0] && accounts[0].name;
     return (
       <div>
         <h1>Cold Storage Access Web</h1>
@@ -146,29 +95,10 @@ export function Home() {
         <span>Signed In: {name}</span>
           <p><b>Files in Storage Account:</b></p>
           
-          {loading === false ?
+          {!loading && client ?
             (
               <div>
-                <div id="breadcrumb-file-nav">
-                  <span>
-                    <span>Home</span>
-                    {breadcumbDirs.map((breadcumbDir, dirIdx) => {
-                      if (breadcumbDir) {
-                        return <span>&gt;
-                          <button onClick={() => breadcrumbDirClick(dirIdx, breadcumbDirs)} className="link-button">
-                            {breadcumbDir}
-                          </button>
-                        </span>
-                      }
-                      else
-                        return <span />
-                    })}
-                  </span>
-                </div>
-
-                <BlobFileList navToFolderCallback={(dir: string) => listFiles(client!, dir)}
-                  storagePrefix={storagePrefix!} blobItems={blobItems!}
-                  currentDirs={currentDirs!} />
+                <BlobFileList client={client} accessToken={accessToken!} />
               </div>
             )
             : <div>Loading</div>
