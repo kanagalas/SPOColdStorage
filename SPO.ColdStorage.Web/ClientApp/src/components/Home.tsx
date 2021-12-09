@@ -17,7 +17,7 @@ export function Home() {
   const [client, setClient] = React.useState<ContainerClient | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [storageInfo, setStorageInfo] = React.useState<StorageInfo | null>();
-  const [blobItems, setBlobItems] = React.useState<BlobItem[]>([]);
+  const [blobItems, setBlobItems] = React.useState<BlobItem[] | null>(null);
   const [currentDirs, setCurrentDirs] = React.useState<string[]>([]);
   const [storagePrefix, setStoragePrefix] = React.useState<string>("");
 
@@ -32,7 +32,7 @@ export function Home() {
       RequestAccessToken();
     }
 
-    if (accessToken) {
+    if (accessToken && !blobItems) {
       
       // Load storage config first
       getStorageConfig()
