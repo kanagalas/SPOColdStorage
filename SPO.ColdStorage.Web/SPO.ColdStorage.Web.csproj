@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SPO.ColdStorage.Entities\SPO.ColdStorage.Entities.csproj" />
+    <ProjectReference Include="..\SPO.ColdStorage.Migration.Engine\SPO.ColdStorage.Migration.Engine.csproj" />
   </ItemGroup>
 
   <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">

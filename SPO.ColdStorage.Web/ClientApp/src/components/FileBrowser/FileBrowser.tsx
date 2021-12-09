@@ -1,6 +1,6 @@
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { BlobFileList } from './BlobFileList';
-import './NavMenu.css';
+import '../NavMenu.css';
 import React from 'react';
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 

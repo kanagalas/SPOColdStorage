@@ -34,10 +34,13 @@ export class NavMenu extends Component<{}, { collapsed: boolean }> {
 
                 <AuthenticatedTemplate>
                   <NavItem>
-                    <NavLink tag={Link} className="text-dark" to="/">Storage Browser</NavLink>
+                    <NavLink tag={Link} className="text-dark" to="/">Browser</NavLink>
                   </NavItem>
                   <NavItem>
-                    <NavLink tag={Link} className="text-dark" to="/FindLog">Check log</NavLink>
+                    <NavLink tag={Link} className="text-dark" to="/FindLog">Log</NavLink>
+                  </NavItem>
+                  <NavItem>
+                    <NavLink tag={Link} className="text-dark" to="/MigrationTargets">Targets</NavLink>
                   </NavItem>
                 </AuthenticatedTemplate>
 

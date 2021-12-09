@@ -1,4 +1,4 @@
-﻿namespace SPO.ColdStorage.Web
+﻿namespace SPO.ColdStorage.Web.Models
 {
     public class StorageInfo
     {

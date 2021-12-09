@@ -8,6 +8,7 @@ import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, use
 import { loginRequest } from "./authConfig";
 
 import './custom.css'
+import { MigrationTargetsConfig } from './components/MigrationTargets/MigrationTargetsConfig';
 
 export default function App() {
 
@@ -32,7 +33,7 @@ export default function App() {
     }, [accounts, instance]);
 
     React.useEffect(() => {
-        
+
         // Get OAuth token
         if (isAuthenticated && !accessToken) {
             RequestAccessToken();
@@ -43,8 +44,9 @@ export default function App() {
     return (
         <Layout>
             <AuthenticatedTemplate>
-                <Route exact path='/' render={ () =><FileBrowser {... {token: accessToken!}} />} />
-                <Route path='/FindLog' render={ () =><FindLog {... {token: accessToken!}} />} />
+                <Route exact path='/' render={() => <FileBrowser {... { token: accessToken! }} />} />
+                <Route path='/FindLog' render={() => <FindLog {... { token: accessToken! }} />} />
+                <Route path='/MigrationTargets' render={() => <MigrationTargetsConfig {... { token: accessToken! }} />} />
             </AuthenticatedTemplate>
             <UnauthenticatedTemplate>
                 <Route exact path='/' component={Login} />

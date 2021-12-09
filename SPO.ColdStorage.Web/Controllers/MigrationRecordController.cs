@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
+using SPO.ColdStorage.Web.Models;
 
 namespace SPO.ColdStorage.Web.Controllers
 {
