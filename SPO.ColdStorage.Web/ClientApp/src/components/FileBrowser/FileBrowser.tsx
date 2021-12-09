@@ -2,8 +2,7 @@ import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { BlobFileList } from './BlobFileList';
 import './NavMenu.css';
 import React from 'react';
-import { SignInButton } from "./SignInButton";
-import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
+import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 
 interface StorageInfo {
   sharedAccessToken: string,
@@ -11,7 +10,7 @@ interface StorageInfo {
   containerName: string
 }
 
-export const Home : React.FC<{token:string}> = (props) => {
+export const FileBrowser : React.FC<{token:string}> = (props) => {
 
   const [client, setClient] = React.useState<ContainerClient | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
@@ -40,7 +39,6 @@ export const Home : React.FC<{token:string}> = (props) => {
       return Promise.reject();
     });
   }, []);
-
   
   React.useEffect(() => {
 
@@ -69,7 +67,6 @@ export const Home : React.FC<{token:string}> = (props) => {
 
         <p>This application is for finding files moved into Azure Blob cold storage.</p>
 
-        <AuthenticatedTemplate>
         <span>Signed In: {name}</span>
           <p><b>Files in Storage Account:</b></p>
           
@@ -81,11 +78,6 @@ export const Home : React.FC<{token:string}> = (props) => {
             )
             : <div>Loading</div>
           }
-        </AuthenticatedTemplate>
-        <UnauthenticatedTemplate>
-          <p>You are not signed in! Please sign in.</p>
-          <SignInButton />
-        </UnauthenticatedTemplate>
       </div>
     );
 };

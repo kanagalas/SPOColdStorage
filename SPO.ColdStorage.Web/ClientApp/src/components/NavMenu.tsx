@@ -34,7 +34,7 @@ export class NavMenu extends Component<{}, { collapsed: boolean }> {
 
                 <AuthenticatedTemplate>
                   <NavItem>
-                    <NavLink tag={Link} className="text-dark" to="/">Home</NavLink>
+                    <NavLink tag={Link} className="text-dark" to="/">Storage Browser</NavLink>
                   </NavItem>
                   <NavItem>
                     <NavLink tag={Link} className="text-dark" to="/FindLog">Check log</NavLink>

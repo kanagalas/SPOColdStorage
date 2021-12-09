@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Route } from 'react-router';
 import { Layout } from './components/Layout';
-import {Home } from './components/Home';
+import { FileBrowser } from './components/FileBrowser/FileBrowser';
 import { Login } from './components/Login';
-import { FindLog } from './components/FindLog';
+import { FindLog } from './components/MigrationLogs/FindLog';
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { loginRequest } from "./authConfig";
 
@@ -14,7 +14,6 @@ export default function App() {
     const [accessToken, setAccessToken] = useState<string>();
     const isAuthenticated = useIsAuthenticated();
     const { instance, accounts } = useMsal();
-
 
     const RequestAccessToken = React.useCallback(() => {
         const request = {
@@ -32,10 +31,9 @@ export default function App() {
         });
     }, [accounts, instance]);
 
-
-
     React.useEffect(() => {
-
+        
+        // Get OAuth token
         if (isAuthenticated && !accessToken) {
             RequestAccessToken();
         }
@@ -45,7 +43,7 @@ export default function App() {
     return (
         <Layout>
             <AuthenticatedTemplate>
-                <Route exact path='/' render={ () =><Home {... {token: accessToken!}} />} />
+                <Route exact path='/' render={ () =><FileBrowser {... {token: accessToken!}} />} />
                 <Route path='/FindLog' render={ () =><FindLog {... {token: accessToken!}} />} />
             </AuthenticatedTemplate>
             <UnauthenticatedTemplate>
