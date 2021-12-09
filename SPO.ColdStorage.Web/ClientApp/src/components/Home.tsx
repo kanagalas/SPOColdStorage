@@ -1,78 +1,82 @@
 import { BlobItem, BlobServiceClient, ContainerClient } from '@azure/storage-blob';
-import { Component } from 'react';
-import {BlobFileList} from './BlobFileList';
+import { BlobFileList } from './BlobFileList';
 import './NavMenu.css';
+import React, { useState } from 'react';
+import { SignInButton } from "./SignInButton";
+import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
+import { loginRequest } from "../authConfig";
 
-interface HomeState {
-  client: ContainerClient | null,
-  blobItems: BlobItem[],
-  currentDirs: string[],
-  storagePrefix: string,
-  loading: boolean,
-  storageInfo: StorageInfo | null
-}
-
-interface StorageInfo
-{
-  sharedAccessToken : string,
+interface StorageInfo {
+  sharedAccessToken: string,
   accountURI: string,
   containerName: string
 }
 
-export class Home extends Component<{}, HomeState> {
+export function Home() {
 
-  constructor(props: any) {
-    super(props);
-    this.state =
-    {
-      blobItems: [],
-      client: null,
-      storagePrefix: "",
-      currentDirs: [],
-      loading: true,
-      storageInfo: null
-    };
-  }
+  const [client, setClient] = React.useState<ContainerClient | null>(null);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [storageInfo, setStorageInfo] = React.useState<StorageInfo | null>();
+  const [blobItems, setBlobItems] = React.useState<BlobItem[]>([]);
+  const [currentDirs, setCurrentDirs] = React.useState<string[]>([]);
+  const [storagePrefix, setStoragePrefix] = React.useState<string>("");
 
-  componentDidMount() {
+  
+  const isAuthenticated = useIsAuthenticated();
+  const { instance, accounts, inProgress } = useMsal();
+  const [accessToken, setAccessToken] = useState<string>();
 
-    // Load storage config first
-    this.getStorageConfig()
-      .then(storageConfigInfo => {
+  React.useEffect(() => {
+
+    if (isAuthenticated && !accessToken) {
+      RequestAccessToken();
+    }
+
+    if (accessToken) {
+      
+      // Load storage config first
+      getStorageConfig()
+      .then((storageConfigInfo: any) => {
         // Create a new BlobServiceClient based on config loaded from our own API
         const blobServiceClient = new BlobServiceClient(`${storageConfigInfo.accountURI}${storageConfigInfo.sharedAccessToken}`);
 
         const containerName = storageConfigInfo.containerName;
         const client = blobServiceClient.getContainerClient(containerName);
 
-        this.setState({ client: client });
+        setClient(client);
 
         // Get blobs for root folder
-        this.listFiles(client, "")
-          .then(() => this.setState({ loading: false }))
-          .catch(() => alert('Failed to load blob info from Azure blob'));
+        listFiles(client, "")
+          .then(() => setLoading(false));
       });
-  }
+    }
+  })
 
-  async getStorageConfig() : Promise<StorageInfo>
-  {
-    return await fetch('migrationrecord/GetStorageInfo')
+  async function getStorageConfig(): Promise<StorageInfo> {
+    return await fetch('migrationrecord/GetStorageInfo', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + accessToken,
+        }}
+      )
       .then(async response => {
 
-          const data : StorageInfo = await response.json();
-          console.log(data);
-          this.setState({ storageInfo: data});
-          return Promise.resolve(data);
+        const data: StorageInfo = await response.json();
+        console.log(data);
+        setStorageInfo(data);
+        return Promise.resolve(data);
       })
       .catch(err => {
-          alert('Loading storage data failed');
-          this.setState({ storageInfo: null, loading: false });
+        // alert('Loading storage data failed');
+        setStorageInfo(null);
+        setLoading(false);
 
-          return Promise.reject();
+        return Promise.reject();
       });
   }
 
-  async listFiles(client: ContainerClient, prefix: string) {
+  async function listFiles(client: ContainerClient, prefix: string) {
 
     let dirs: string[] = [];
     let blobs: BlobItem[] = [];
@@ -90,7 +94,9 @@ export class Home extends Component<{}, HomeState> {
         }
       }
 
-      this.setState({ blobItems: blobs, currentDirs: dirs, storagePrefix: prefix });
+      setBlobItems(blobs);
+      setCurrentDirs(dirs);
+      setStoragePrefix(prefix);
 
       return Promise.resolve();
     } catch (error) {
@@ -98,7 +104,7 @@ export class Home extends Component<{}, HomeState> {
     }
   };
 
-  breadcrumbDirClick(dirIdx: number, allDirs: string[]) {
+  function breadcrumbDirClick(dirIdx: number, allDirs: string[]) {
     let fullPath: string = "";
 
     for (let index = 0; index <= dirIdx; index++) {
@@ -106,46 +112,76 @@ export class Home extends Component<{}, HomeState> {
       fullPath += `${thisDir}/`;
     }
 
-    this.listFiles(this.state.client!, fullPath);
+    listFiles(client!, fullPath);
   }
 
-  render() {
-    const breadcumbDirs = this.state.storagePrefix.split("/");
+  function RequestAccessToken() {
+    const request = {
+      ...loginRequest,
+      account: accounts[0]
+    };
+
+    // Silently acquires an access token which is then attached to a request for Microsoft Graph data
+    instance.acquireTokenSilent(request).then((response) => {
+      setAccessToken(response.accessToken);
+    }).catch((e) => {
+      instance.acquireTokenPopup(request).then((response) => {
+        setAccessToken(response.accessToken);
+      });
+    });
+  }
+
+  const name = accounts[0] && accounts[0].name;
+  if (loading) {
+    return <div>Loading</div>;
+  }
+  else {
+    const breadcumbDirs = storagePrefix!.split("/");
 
     return (
       <div>
         <h1>Cold Storage Access Web</h1>
+        {isAuthenticated ? <span>Signed In: {name}</span> : <SignInButton />}
+
         <p>This application is for finding files moved into Azure Blob cold storage.</p>
         <p><b>Files in Storage Account:</b></p>
-        {this.state.loading === false ?
-          (
-            <div>
-              <div id="breadcrumb-file-nav">
-                <span>
-                  <span>Home</span>
-                  {breadcumbDirs.map((breadcumbDir, dirIdx) => {
-                    if (breadcumbDir) {
-                      return <span>&gt;
-                        <button onClick={() => this.breadcrumbDirClick(dirIdx, breadcumbDirs)} className="link-button">
-                          {breadcumbDir}
-                        </button>
-                      </span>
-                    }
-                    else
-                      return <span />
-                  })}
-                </span>
+
+
+        <AuthenticatedTemplate>
+          {loading === false ?
+            (
+              <div>
+                <div id="breadcrumb-file-nav">
+                  <span>
+                    <span>Home</span>
+                    {breadcumbDirs.map((breadcumbDir, dirIdx) => {
+                      if (breadcumbDir) {
+                        return <span>&gt;
+                          <button onClick={() => breadcrumbDirClick(dirIdx, breadcumbDirs)} className="link-button">
+                            {breadcumbDir}
+                          </button>
+                        </span>
+                      }
+                      else
+                        return <span />
+                    })}
+                  </span>
+                </div>
+
+                <BlobFileList navToFolderCallback={(dir: string) => listFiles(client!, dir)}
+                  storagePrefix={storagePrefix!} blobItems={blobItems!}
+                  currentDirs={currentDirs!} />
               </div>
-
-            <BlobFileList navToFolderCallback={ (dir : string) => this.listFiles(this.state.client!, dir)} 
-              storagePrefix={this.state.storagePrefix} blobItems={this.state.blobItems} 
-              currentDirs={this.state.currentDirs}/>
-            </div>
-          )
-          : <div>Loading</div>
-        }
-
+            )
+            : <div>Loading</div>
+          }
+        </AuthenticatedTemplate>
+        <UnauthenticatedTemplate>
+          <p>You are not signed in! Please sign in.</p>
+        </UnauthenticatedTemplate>
       </div>
     );
   }
+
+
 }

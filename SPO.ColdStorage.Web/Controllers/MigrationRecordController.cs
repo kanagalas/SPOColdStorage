@@ -8,6 +8,7 @@ using SPO.ColdStorage.Entities.DBEntities;
 
 namespace SPO.ColdStorage.Web.Controllers
 {
+    [Microsoft.AspNetCore.Authorization.Authorize]
     [ApiController]
     [Route("[controller]")]
     public class MigrationRecordController : ControllerBase

@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@azure/msal-browser": "^2.20.0",
+    "@azure/msal-react": "^1.1.2",
     "@azure/storage-blob": "^12.8.0",
     "@emotion/react": "^11.7.0",
     "@emotion/styled": "^11.6.0",
