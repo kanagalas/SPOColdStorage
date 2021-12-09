@@ -1,10 +1,9 @@
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { BlobFileList } from './BlobFileList';
 import './NavMenu.css';
-import React, { useState } from 'react';
+import React from 'react';
 import { SignInButton } from "./SignInButton";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { loginRequest } from "../authConfig";
 
 interface StorageInfo {
   sharedAccessToken: string,
@@ -12,22 +11,21 @@ interface StorageInfo {
   containerName: string
 }
 
-export function Home() {
+export const Home : React.FC<{token:string}> = (props) => {
 
   const [client, setClient] = React.useState<ContainerClient | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
 
   const isAuthenticated = useIsAuthenticated();
-  const { instance, accounts } = useMsal();
-  const [accessToken, setAccessToken] = useState<string>();
+  const { accounts } = useMsal();
 
-  const getStorageConfig = React.useCallback(async () => 
+  const getStorageConfig = React.useCallback(async (token) => 
   {
     return await fetch('migrationrecord/GetStorageInfo', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + accessToken,
+        'Authorization': 'Bearer ' + token,
       }}
     )
     .then(async response => {
@@ -41,35 +39,15 @@ export function Home() {
 
       return Promise.reject();
     });
-  }, [accessToken]);
-
-  const RequestAccessToken = React.useCallback(() => {
-    const request = {
-      ...loginRequest,
-      account: accounts[0]
-    };
-
-    // Silently acquires an access token which is then attached to a request for Microsoft Graph data
-    instance.acquireTokenSilent(request).then((response) => {
-      setAccessToken(response.accessToken);
-    }).catch((e) => {
-      instance.acquireTokenPopup(request).then((response) => {
-        setAccessToken(response.accessToken);
-      });
-    });
-  }, [accounts, instance]);
+  }, []);
 
   
   React.useEffect(() => {
 
-    if (isAuthenticated && !accessToken) {
-      RequestAccessToken();
-    }
-
-    if (accessToken) {
+    if (props.token) {
 
       // Load storage config first
-      getStorageConfig()
+      getStorageConfig(props.token)
       .then((storageConfigInfo: any) => {
         console.log('Got storage config from site API')
 
@@ -82,7 +60,7 @@ export function Home() {
         setClient(blobStorageClient);
       });
     }
-  }, [accessToken, RequestAccessToken, getStorageConfig, isAuthenticated]);
+  }, [getStorageConfig, isAuthenticated, props]);
 
     const name = accounts[0] && accounts[0].name;
     return (
@@ -98,7 +76,7 @@ export function Home() {
           {!loading && client ?
             (
               <div>
-                <BlobFileList client={client} accessToken={accessToken!} />
+                <BlobFileList client={client!} accessToken={props.token} />
               </div>
             )
             : <div>Loading</div>
@@ -110,4 +88,4 @@ export function Home() {
         </UnauthenticatedTemplate>
       </div>
     );
-}
+};

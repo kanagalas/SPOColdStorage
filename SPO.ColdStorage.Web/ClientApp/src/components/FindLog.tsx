@@ -22,12 +22,14 @@ interface SearchLogsState {
     loading: boolean,
     searchTerm: string;
 }
+interface SearchLogsProps {
+    token: string;
+}
 
-
-export class FindLog extends React.Component<{}, SearchLogsState> {
+export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
     static displayName = FindLog.name;
 
-    constructor(props: any) {
+    constructor(props: SearchLogsProps) {
         super(props);
         this.state = { searchLogs: [], loading: false, searchTerm: "" };
     }
@@ -35,6 +37,28 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
     componentDidMount() {
         if (this.state.searchTerm !== "") {
             this.populateSearchLogsFromSearch();
+        }
+    }
+
+    async populateSearchLogsFromSearch() {
+        if (this.state.searchTerm.length > 0) {
+            this.setState({ loading: true });
+            await fetch('migrationrecord?keyWord=' + this.state.searchTerm, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + this.props.token,
+                }})
+                .then(async response => {
+                    const data = await response.json();
+                    console.log(data);
+                    this.setState({ searchLogs: data, loading: false });
+                    this.setState({ loading: false });
+                })
+                .catch(err => {
+                    alert('Loading data failed');
+                    this.setState({ searchLogs: [], loading: false });
+                });
         }
     }
 
@@ -97,21 +121,4 @@ export class FindLog extends React.Component<{}, SearchLogsState> {
         );
     }
 
-    async populateSearchLogsFromSearch() {
-        if (this.state.searchTerm.length > 0) {
-            this.setState({ loading: true });
-            await fetch('migrationrecord?keyWord=' + this.state.searchTerm)
-                .then(async response => {
-
-                    const data = await response.json();
-                    console.log(data);
-                    this.setState({ searchLogs: data, loading: false });
-                    this.setState({ loading: false });
-                })
-                .catch(err => {
-                    alert('Loading data failed');
-                    this.setState({ searchLogs: [], loading: false });
-                });
-        }
-    }
 }
