@@ -48,9 +48,17 @@ namespace SPO.ColdStorage.Web.Controllers
             foreach (var siteUrl in config.TargetSites)
             {
                 // Verify each site
-                var siteContext = await AuthUtils.GetClientContext(_config, siteUrl);
-                siteContext.Load(siteContext.Web);
-                await siteContext.ExecuteQueryAsync();
+                try
+                {
+
+                    var siteContext = await AuthUtils.GetClientContext(_config, siteUrl);
+                    siteContext.Load(siteContext.Web);
+                    await siteContext.ExecuteQueryAsync();
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"Got '{ex.Message}' validating SPO site URL '{siteUrl}'. It's not a valid SharePoint site-collection URL?");
+                }
 
                 // Assuming no error, save to SQL
                 _context.TargetSharePointSites.Add(new TargetMigrationSite { RootURL = siteUrl });
