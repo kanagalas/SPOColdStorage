@@ -16,66 +16,37 @@ export function Home() {
 
   const [client, setClient] = React.useState<ContainerClient | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
-  const [storageInfo, setStorageInfo] = React.useState<StorageInfo | null>();
   const [blobItems, setBlobItems] = React.useState<BlobItem[] | null>(null);
   const [currentDirs, setCurrentDirs] = React.useState<string[]>([]);
   const [storagePrefix, setStoragePrefix] = React.useState<string>("");
 
-  
   const isAuthenticated = useIsAuthenticated();
-  const { instance, accounts, inProgress } = useMsal();
+  const { instance, accounts } = useMsal();
   const [accessToken, setAccessToken] = useState<string>();
 
-  React.useEffect(() => {
-
-    if (isAuthenticated && !accessToken) {
-      RequestAccessToken();
-    }
-
-    if (accessToken && !blobItems) {
-      
-      // Load storage config first
-      getStorageConfig()
-      .then((storageConfigInfo: any) => {
-        // Create a new BlobServiceClient based on config loaded from our own API
-        const blobServiceClient = new BlobServiceClient(`${storageConfigInfo.accountURI}${storageConfigInfo.sharedAccessToken}`);
-
-        const containerName = storageConfigInfo.containerName;
-        const client = blobServiceClient.getContainerClient(containerName);
-
-        setClient(client);
-
-        // Get blobs for root folder
-        listFiles(client, "")
-          .then(() => setLoading(false));
-      });
-    }
-  })
-
-  async function getStorageConfig(): Promise<StorageInfo> {
+  const getStorageConfig = React.useCallback(async () => 
+  {
     return await fetch('migrationrecord/GetStorageInfo', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
-        }}
-      )
-      .then(async response => {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken,
+      }}
+    )
+    .then(async response => {
+      const data: StorageInfo = await response.json();
+      return Promise.resolve(data);
+    })
+    .catch(err => {
 
-        const data: StorageInfo = await response.json();
-        console.log(data);
-        setStorageInfo(data);
-        return Promise.resolve(data);
-      })
-      .catch(err => {
-        // alert('Loading storage data failed');
-        setStorageInfo(null);
-        setLoading(false);
+      // alert('Loading storage data failed');
+      setLoading(false);
 
-        return Promise.reject();
-      });
-  }
+      return Promise.reject();
+    });
+  }, [accessToken]);
 
+  
   async function listFiles(client: ContainerClient, prefix: string) {
 
     let dirs: string[] = [];
@@ -115,7 +86,7 @@ export function Home() {
     listFiles(client!, fullPath);
   }
 
-  function RequestAccessToken() {
+  const RequestAccessToken = React.useCallback(() => {
     const request = {
       ...loginRequest,
       account: accounts[0]
@@ -129,25 +100,52 @@ export function Home() {
         setAccessToken(response.accessToken);
       });
     });
-  }
+  }, [accounts, instance]);
+
+  
+  React.useEffect(() => {
+
+    if (isAuthenticated && !accessToken) {
+      RequestAccessToken();
+    }
+
+    if (accessToken && !blobItems) {
+      setLoading(true);
+
+      // Load storage config first
+      getStorageConfig()
+      .then((storageConfigInfo: any) => {
+        // Create a new BlobServiceClient based on config loaded from our own API
+        const blobServiceClient = new BlobServiceClient(`${storageConfigInfo.accountURI}${storageConfigInfo.sharedAccessToken}`);
+
+        const containerName = storageConfigInfo.containerName;
+        const client = blobServiceClient.getContainerClient(containerName);
+
+        setClient(client);
+
+        // Get blobs for root folder
+        listFiles(client, "")
+          .then(() => setLoading(false));
+      });
+    }
+  }, [accessToken, RequestAccessToken, blobItems, getStorageConfig, isAuthenticated]);
+
+
 
   const name = accounts[0] && accounts[0].name;
-  if (loading) {
-    return <div>Loading</div>;
-  }
-  else {
-    const breadcumbDirs = storagePrefix!.split("/");
+
+    const breadcumbDirs = storagePrefix?.split("/") ?? "";
 
     return (
       <div>
         <h1>Cold Storage Access Web</h1>
-        {isAuthenticated ? <span>Signed In: {name}</span> : <SignInButton />}
 
         <p>This application is for finding files moved into Azure Blob cold storage.</p>
-        <p><b>Files in Storage Account:</b></p>
-
 
         <AuthenticatedTemplate>
+        <span>Signed In: {name}</span>
+          <p><b>Files in Storage Account:</b></p>
+          
           {loading === false ?
             (
               <div>
@@ -178,10 +176,8 @@ export function Home() {
         </AuthenticatedTemplate>
         <UnauthenticatedTemplate>
           <p>You are not signed in! Please sign in.</p>
+          <SignInButton />
         </UnauthenticatedTemplate>
       </div>
     );
-  }
-
-
 }
