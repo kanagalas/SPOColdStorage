@@ -74,10 +74,6 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             var downloader = new SharePointFileDownloader(ctx, _config, _tracer);
             var tempFileNameAndSize = await downloader.DownloadFileToTempDir(fileToMigrate);
 
-            // Index file properties - EDIT: ignore for now. Search indexing to be done directly on the blobs
-            //var searchIndexer = new SharePointFileSearchProcessor(_config, _tracer);
-            //await searchIndexer.ProcessFileContent(msg);
-
             // Upload local file to az blob
             var blobUploader = new BlobStorageUploader(_config, _tracer);
             await blobUploader.UploadFileToAzureBlob(tempFileNameAndSize.Item1, fileToMigrate);

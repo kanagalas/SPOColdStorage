@@ -19,18 +19,6 @@
         [ConfigValue]
         public string BlobContainerName { get; set; } = string.Empty;
 
-        [ConfigValue]
-        public string SearchServiceEndPoint { get; set; } = string.Empty;
-
-        [ConfigValue]
-        public string SearchServiceAdminApiKey { get; set; } = string.Empty;
-
-        [ConfigValue]
-        public string SearchServiceQueryApiKey { get; set; } = string.Empty;
-
-        [ConfigValue]
-        public string SearchIndexName { get; set; } = string.Empty;
-
         [ConfigValue(true)]
         public string AppInsightsInstrumentationKey { get; set; } = string.Empty;
 

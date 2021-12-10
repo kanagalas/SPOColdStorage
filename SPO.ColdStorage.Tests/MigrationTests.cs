@@ -159,19 +159,6 @@ namespace SPO.ColdStorage.Tests
         }
 
         [TestMethod]
-        public async Task SharePointFileSearchProcessorTests()
-        {
-            var testMsg = new SharePointFileInfo
-            {
-                SiteUrl = _config!.DevConfig.DefaultSharePointSite,
-                FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
-            };
-
-            var m = new SharePointFileSearchProcessor(_config!, _tracer);
-            await m.ProcessFileContent(testMsg);
-        }
-
-        [TestMethod]
         public async Task BlobStorageFileUploadTests()
         {
             var testMsg = new SharePointFileInfo
