@@ -35,7 +35,7 @@ namespace SPO.ColdStorage.Web.Controllers
         [HttpPost]
         public async Task<ActionResult> SetMigrations(MigrationsConfig config)
         {
-            if (config == null)
+            if (config == null || config.TargetSites.Count == 0)
             {
                 return BadRequest($"{nameof(config)} is null");
             }
@@ -43,20 +43,30 @@ namespace SPO.ColdStorage.Web.Controllers
             // Remove old & set new
             var oldTargetSites = await _context.TargetSharePointSites.ToListAsync();
             _context.TargetSharePointSites.RemoveRange(oldTargetSites);
-            
+
+            // Verify auth works
+            try
+            {
+                await AuthUtils.GetClientContext(_config, config.TargetSites[0]);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating auth");
+                return BadRequest($"Got '{ex.Message}' trying to get a token for SPO auth. Check config.");
+            }
+
             // Verify each site exists
             foreach (var siteUrl in config.TargetSites)
             {
-                // Verify each site
                 try
                 {
-
                     var siteContext = await AuthUtils.GetClientContext(_config, siteUrl);
                     siteContext.Load(siteContext.Web);
                     await siteContext.ExecuteQueryAsync();
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError(ex, "Error validating site");
                     return BadRequest($"Got '{ex.Message}' validating SPO site URL '{siteUrl}'. It's not a valid SharePoint site-collection URL?");
                 }
 

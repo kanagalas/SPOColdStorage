@@ -10,7 +10,7 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
 
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddUserSecrets(System.Reflection.Assembly.GetEntryAssembly())
+                .AddUserSecrets(System.Reflection.Assembly.GetEntryAssembly(), true)
                 .AddEnvironmentVariables()
                 .AddJsonFile("appsettings.json", true);
 

@@ -2,6 +2,10 @@
   "dependencies": {
     "identityapp1": {
       "type": "identityapp"
+    },
+    "appInsights1": {
+      "type": "appInsights",
+      "connectionId": "APPINSIGHTS_CONNECTIONSTRING"
     }
   }
 }
