@@ -1,14 +1,5 @@
-﻿// dotnet user-secrets set "AzureAd:ClientID" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "AzureAd:Secret" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "AzureAd:TenantId" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "ConnectionStrings:ColdStorageDbContext" "Server=(localdb)\\mssqllocaldb;Database=SPOColdStorageDbContextDev;Trusted_Connection=True;MultipleActiveResultSets=true" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "ConnectionStrings:ServiceBus" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "ConnectionStrings:Storage" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "Dev:DefaultStorageConnection" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "Dev:DefaultSharePointSite" "" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "KeyVaultUrl" "https://spocoldstoragedev.vault.azure.net" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "BaseServerAddress" "https://m365x352268.sharepoint.com" --project "SPO.ColdStorage.Migration.Indexer"
-// dotnet user-secrets set "BaseServerAddress" "https://m365x352268.sharepoint.com" --project "SPO.ColdStorage.Migration.Indexer"
+﻿
+
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Utils;

@@ -1,13 +1,9 @@
-﻿// dotnet user-secrets set "SearchServiceEndPoint" "" --project "SPO.ColdStorage.Migration.Migrator"
-// dotnet user-secrets set "SearchServiceAdminApiKey" "" --project "SPO.ColdStorage.Migration.Migrator"
-// dotnet user-secrets set "SearchServiceQueryApiKey" "" --project "SPO.ColdStorage.Migration.Migrator"
-
+﻿
 using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Utils;
 
 Console.WriteLine("SPO Cold Storage - Migrator Listener");
 Console.WriteLine("This app will listen for messages from service-bus and handle them when they arrive, untill you close this application.");
-
 
 var config = ConsoleUtils.GetConfigurationBuilder();
 

@@ -7,9 +7,6 @@
         }
 
         [ConfigValue(true)]
-        public string DefaultStorageConnection { get; set; } = string.Empty;
-
-        [ConfigValue(true)]
         public string DefaultSharePointSite { get; set; } = string.Empty;
     }
 }
