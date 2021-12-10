@@ -4,7 +4,7 @@ import '../NavMenu.css';
 import React from 'react';
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 
-interface StorageInfo {
+export interface StorageInfo {
   sharedAccessToken: string,
   accountURI: string,
   containerName: string
@@ -13,6 +13,7 @@ interface StorageInfo {
 export const FileBrowser : React.FC<{token:string}> = (props) => {
 
   const [client, setClient] = React.useState<ContainerClient | null>(null);
+  const [storageInfo, setStorageInfo] = React.useState<StorageInfo | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
 
   const isAuthenticated = useIsAuthenticated();
@@ -47,7 +48,8 @@ export const FileBrowser : React.FC<{token:string}> = (props) => {
       // Load storage config first
       getStorageConfig(props.token)
       .then((storageConfigInfo: any) => {
-        console.log('Got storage config from site API')
+        console.log('Got storage config from site API');
+        setStorageInfo(storageConfigInfo);
 
         // Create a new BlobServiceClient based on config loaded from our own API
         const blobServiceClient = new BlobServiceClient(`${storageConfigInfo.accountURI}${storageConfigInfo.sharedAccessToken}`);
@@ -73,7 +75,7 @@ export const FileBrowser : React.FC<{token:string}> = (props) => {
           {!loading && client ?
             (
               <div>
-                <BlobFileList client={client!} accessToken={props.token} />
+                <BlobFileList client={client!} accessToken={props.token} storageInfo={storageInfo!} />
               </div>
             )
             : <div>Loading</div>
