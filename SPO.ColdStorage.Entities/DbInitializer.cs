@@ -19,9 +19,11 @@ namespace SPO.ColdStorage.Entities
             }
 
             // Add default data
-
-            context.TargetSharePointSites.Add( new TargetMigrationSite { RootURL = config.DefaultSharePointSite } );
-            await context.SaveChangesAsync();
+            if (!string.IsNullOrEmpty(config.DefaultSharePointSite))
+            {
+                context.TargetSharePointSites.Add(new TargetMigrationSite { RootURL = config.DefaultSharePointSite });
+                await context.SaveChangesAsync();
+            }
 
             return true;
         }
