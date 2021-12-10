@@ -51,9 +51,13 @@ namespace SPO.ColdStorage.Web.Controllers
         public ActionResult<StorageInfo> GetStorageInfo()
         {
             var client = new BlobServiceClient(_config.ConnectionStrings.Storage);
+
+            // Generate a new shared-access-signature
             var sasUri = client.GenerateAccountSasUri(AccountSasPermissions.List | AccountSasPermissions.Read, 
                 DateTime.Now.AddDays(1), 
-                AccountSasResourceTypes.Container);
+                AccountSasResourceTypes.Container | AccountSasResourceTypes.Object);
+
+            // Return for react app
             return new StorageInfo
             {
                 AccountURI = client.Uri.ToString(),
