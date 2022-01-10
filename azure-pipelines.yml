@@ -24,7 +24,7 @@ steps:
     workingDirectory: $(Build.SourcesDirectory)\SPO.ColdStorage.Web\ClientApp\src
     targetType: 'inline'
     script: | 
-      copy $(caCertificate.secureFilePath) authConfig.js
+      copy $(downloadAuthSettings.secureFilePath) authConfig.js
 
 - task: NuGetToolInstaller@1
 
