@@ -1,5 +1,6 @@
 # ASP.NET
 
+
 trigger:
 - main
 
@@ -12,6 +13,17 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
+- task: DownloadSecureFile@1
+  name: downloadAuthSettings 
+  inputs:
+    secureFile: 'authConfig - dev.js'
+    retryCount: '1'
+
+- task: PowerShell@2
+  inputs:
+    workingDirectory: $(build.artifactstagingdirectory)\SPO.ColdStorage.Web\ClientApp\src
+    script: copy $(caCertificate.secureFilePath) authConfig.js
+
 - task: NuGetToolInstaller@1
 
 - task: UseDotNet@2
