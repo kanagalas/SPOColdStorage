@@ -21,7 +21,7 @@ steps:
 
 - task: PowerShell@2
   inputs:
-    workingDirectory: $(build.artifactstagingdirectory)\SPOColdStorage\SPO.ColdStorage.Web\ClientApp\src
+    workingDirectory: $(Build.SourcesDirectory)\SPOColdStorage\SPO.ColdStorage.Web\ClientApp\src
     script: copy $(caCertificate.secureFilePath) authConfig.js
 
 - task: NuGetToolInstaller@1
