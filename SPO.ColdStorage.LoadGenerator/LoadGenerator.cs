@@ -1,100 +1,128 @@
 ﻿using Microsoft.SharePoint.Client;
+using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.LoadGenerator
 {
     internal class LoadGenerator
     {
-        private readonly ClientContext _spClient;
+        private readonly Options _options;
 
-        public LoadGenerator(ClientContext context)
+        public LoadGenerator(Options options)
         {
-            this._spClient = context;
+            this._options = options;
         }
 
         public async Task Go(int fileCount)
         {
             int filesAdded = 0;
-            var targetLists = await GetAllListsAllWebs();
-            while (filesAdded < fileCount)
+
+            const int MAX_FILES_PER_THREAD = 500;
+
+            var threadsNeeded = fileCount / MAX_FILES_PER_THREAD;
+            var tasks = new List<Task>();
+
+            for (int threadIndex = 0; threadIndex < threadsNeeded; threadIndex++)
+            {
+                var filesToInsert = MAX_FILES_PER_THREAD;
+                if (threadIndex == threadsNeeded - 1)
+                {
+                    filesToInsert = fileCount - filesAdded;
+                }
+
+                // Multi-thread the file create
+                tasks.Add(AddFiles(filesAdded, filesToInsert, threadIndex));
+                filesAdded += MAX_FILES_PER_THREAD;
+
+#if DEBUG
+                Console.Write($"+#{threadIndex}/{threadsNeeded}...");
+#endif
+            }
+            await Task.WhenAll(tasks.ToArray());
+
+        }
+
+        private async Task AddFiles(int fileStartIndex, int filesToInsert, int threadIndex)
+        {
+            var ctx = await AuthUtils.GetClientContext(_options.TargetWeb!, _options.TenantId!, _options.ClientID!, _options.ClientSecret!, _options.KeyVaultUrl!, _options.BaseServerAddress!);
+
+            var targetLists = await GetAllListsAllWebs(ctx);
+
+            for (int i = 0; i < filesToInsert; i++)
             {
                 foreach (var list in targetLists)
                 {
-                    if (filesAdded == fileCount)
+                    try
                     {
-                        break;
-                    }
 
-                    if (list.BaseType == BaseType.GenericList)
-                    {
-                        await AddFileToCustomList(list);
+                        if (list.BaseType == BaseType.GenericList)
+                        {
+                            await AddFileToCustomList(list, ctx);
+                        }
+                        else if (list.BaseType == BaseType.DocumentLibrary)
+                        {
+                            await AddFileToDocLib(list, ctx);
+                        }
                     }
-                    else if (list.BaseType == BaseType.DocumentLibrary)
+                    catch (System.Net.WebException ex)
                     {
-                        await AddFileToDocLib(list);
+                        Console.WriteLine($"Got error on thread {threadIndex} creating file: {ex.Message}.");
+                        
                     }
-                    filesAdded++;
-                    Console.WriteLine(filesAdded);
+                    Console.WriteLine(fileStartIndex + i);
                 }
             }
-            
         }
 
-        public async Task<IEnumerable<List>> GetAllListsAllWebs()
+        public async Task<IEnumerable<List>> GetAllListsAllWebs(ClientContext ctx)
         {
             var results = new List<List>();
-            var rootWeb = _spClient.Web;
-            _spClient.Load(rootWeb);
-            _spClient.Load(rootWeb.Webs);
-            await _spClient.ExecuteQueryAsync();
+            var rootWeb = ctx.Web;
+            ctx.Load(rootWeb);
+            ctx.Load(rootWeb.Webs);
+            await ctx.ExecuteQueryAsyncWithThrottleRetries();
 
-            results.AddRange(await GetAllLists(rootWeb));
+            results.AddRange(await GetAllLists(rootWeb, ctx));
 
             foreach (var subSweb in rootWeb.Webs)
             {
-                results.AddRange(await GetAllLists(subSweb));
+                results.AddRange(await GetAllLists(subSweb, ctx));
             }
 
             return results;
         }
 
-        private async Task<IEnumerable<List>> GetAllLists(Web web)
+        private async Task<IEnumerable<List>> GetAllLists(Web web, ClientContext ctx)
         {
             var results = new List<List>();
-            _spClient.Load(web.Lists);
-            _spClient.Load(web.Webs);
-            await _spClient.ExecuteQueryAsync();
+            ctx.Load(web.Lists);
+            ctx.Load(web.Webs);
+            await ctx.ExecuteQueryAsync();
 
             foreach (var list in web.Lists)
             {
-
-                _spClient.Load(list, l => l.BaseType, l => l.IsSystemList);
-                _spClient.Load(list.RootFolder);
-                _spClient.Load(list, l => l.RootFolder.Name);
-                await _spClient.ExecuteQueryAsync();
+                ctx.Load(list, l => l.BaseType, l => l.IsSystemList);
+                ctx.Load(list.RootFolder);
+                ctx.Load(list, l => l.RootFolder.Name);
+                await ctx.ExecuteQueryAsync();
 
                 // Only upload to safe lists
                 if (!list.IsSystemList && !list.Hidden)
                 {
                     results.Add(list);
-                    Console.WriteLine(list.RootFolder.ServerRelativeUrl);
                 }
             }
 
             return results;
         }
 
-        private async Task AddFileToDocLib(List list)
+        private async Task AddFileToDocLib(List list, ClientContext ctx)
         {
-            await list.SaveNewFile(_spClient, $"test{DateTime.Now.Ticks}.txt", System.Text.Encoding.UTF8.GetBytes("bum"));
+            await list.SaveNewFile(ctx, $"test{DateTime.Now.Ticks}.txt", Encoding.UTF8.GetBytes("bum"));
         }
 
-        private async Task AddFileToCustomList(List list)
+        private async Task AddFileToCustomList(List list, ClientContext ctx)
         {
             var newName = DateTime.Now.Ticks.ToString();
             var newItemCreateInfo = new ListItemCreationInformation();
@@ -103,7 +131,7 @@ namespace SPO.ColdStorage.LoadGenerator
 
             oListItem.Update();
 
-            await _spClient.ExecuteQueryAsync();
+            await ctx.ExecuteQueryAsyncWithThrottleRetries();
 
             var attInfo = new AttachmentCreationInformation();
             attInfo.FileName = newName + ".txt";
@@ -111,11 +139,9 @@ namespace SPO.ColdStorage.LoadGenerator
 
             Attachment att = oListItem.AttachmentFiles.Add(attInfo); //Add to File
 
-            _spClient.Load(att);
+            ctx.Load(att);
 
-            await _spClient.ExecuteQueryAsync();
-
-            //await list.SaveNewFile(_spClient, $"{oListItem.Id}/test{DateTime.Now.Ticks}.txt", System.Text.Encoding.UTF8.GetBytes("bum"));
+            await ctx.ExecuteQueryAsyncWithThrottleRetries();
         }
     }
 }

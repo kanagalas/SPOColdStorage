@@ -1,5 +1,6 @@
 ﻿using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Migration.Engine.Model;
+using SPO.ColdStorage.Migration.Engine.Utils;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
@@ -42,7 +43,7 @@ namespace SPO.ColdStorage.Migration.Engine
             {
                 _spClient.Load(_spClient.Web);
                 _spClient.Load(_spClient.Site, s => s.Url);
-                await _spClient.ExecuteQueryAsync();
+                await _spClient.ExecuteQueryAsyncWithThrottleRetries();
             }
         }
 
@@ -52,7 +53,7 @@ namespace SPO.ColdStorage.Migration.Engine
             var rootWeb = _spClient.Web;
             await EnsureLoaded();
             _spClient.Load(rootWeb.Webs);
-            await _spClient.ExecuteQueryAsync();
+            await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
             await ProcessWeb(rootWeb);
 
@@ -65,12 +66,12 @@ namespace SPO.ColdStorage.Migration.Engine
         private async Task ProcessWeb(Web web)
         {
             _spClient.Load(web.Lists);
-            await _spClient.ExecuteQueryAsync();
+            await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
             foreach (var list in web.Lists)
             {
                 _spClient.Load(list, l => l.IsSystemList);
-                await _spClient.ExecuteQueryAsync();
+                await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
                 if (!list.Hidden && !list.IsSystemList)
                 {
@@ -82,55 +83,76 @@ namespace SPO.ColdStorage.Migration.Engine
         public async Task<List<SharePointFileInfo>> CrawlList(List list)
         {
             await EnsureLoaded();
-            _spClient.Load(list, l => l.BaseType);
-            await _spClient.ExecuteQueryAsync();
+            _spClient.Load(list, l => l.BaseType, l => l.ItemCount);
+            await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
             var results = new List<SharePointFileInfo>();
 
             var camlQuery = new CamlQuery();
-            var listItems = list.GetItems(camlQuery);
+            camlQuery.ViewXml = "<View Scope=\"RecursiveAll\"><Query>" +
+                "<OrderBy><FieldRef Name='ID' Ascending='TRUE'/></OrderBy></Query><RowLimit Paged=\"TRUE\">5000</RowLimit></View>";
 
-            if (list.BaseType == BaseType.GenericList)
+            // Large-list support & paging
+            ListItemCollection listItems = null!;
+            ListItemCollectionPosition currentPosition = null!;
+            do
             {
-                // Load attachments
-                _spClient.Load(listItems,
-                                 items => items.Include(
-                                    item => item.Id,
-                                    item => item.AttachmentFiles,
-                                    item => item["Modified"],
-                                    item => item["Editor"],
-                                    item => item.File.Exists,
-                                    item => item.File.ServerRelativeUrl));
-            }
-            else if (list.BaseType == BaseType.DocumentLibrary)
-            {
-                // Load docs
-                _spClient.Load(listItems,
-                                 items => items.Include(
-                                    item => item.Id,
-                                    item => item.FileSystemObjectType,
-                                    item => item["Modified"],
-                                    item => item["Editor"],
-                                    item => item.File.Exists,
-                                    item => item.File.ServerRelativeUrl));
-            }
+                camlQuery.ListItemCollectionPosition = currentPosition;
 
-            await _spClient.ExecuteQueryAsync();
+                listItems = list.GetItems(camlQuery);
+                _spClient.Load(listItems, l => l.ListItemCollectionPosition);
 
-            foreach (var item in listItems)
-            {
-                SharePointFileInfo? foundFileInfo = null;
-                if (list.BaseType == BaseType.GenericList)
+                if (list.BaseType == BaseType.DocumentLibrary)
                 {
-                    results.AddRange(await ProcessListItemAttachments(item));
+                    // Load docs
+                    _spClient.Load(listItems,
+                                     items => items.Include(
+                                        item => item.Id,
+                                        item => item.FileSystemObjectType,
+                                        item => item["Modified"],
+                                        item => item["Editor"],
+                                        item => item.File.Exists,
+                                        item => item.File.ServerRelativeUrl));
                 }
-                else if (list.BaseType == BaseType.DocumentLibrary)
+                else
                 {
-                    foundFileInfo = await ProcessDocLibItem(item);
+                    // Generic list, or similar enough. Load attachments
+                    _spClient.Load(listItems,
+                                     items => items.Include(
+                                        item => item.Id,
+                                        item => item.AttachmentFiles,
+                                        item => item["Modified"],
+                                        item => item["Editor"],
+                                        item => item.File.Exists,
+                                        item => item.File.ServerRelativeUrl));
                 }
-                if (foundFileInfo != null)
-                    results.Add(foundFileInfo!);
+
+                try
+                {
+                    await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+                }
+                catch (System.Net.WebException ex)
+                {
+                    Console.WriteLine($"Got error reading list: {ex.Message}.");
+                }
+
+                currentPosition = listItems.ListItemCollectionPosition;
+                foreach (var item in listItems)
+                {
+                    SharePointFileInfo? foundFileInfo = null;
+                    if (list.BaseType == BaseType.GenericList)
+                    {
+                        results.AddRange(await ProcessListItemAttachments(item));
+                    }
+                    else if (list.BaseType == BaseType.DocumentLibrary)
+                    {
+                        foundFileInfo = await ProcessDocLibItem(item);
+                    }
+                    if (foundFileInfo != null)
+                        results.Add(foundFileInfo!);
+                }
             }
+            while (currentPosition != null);
 
             return results;
         }
