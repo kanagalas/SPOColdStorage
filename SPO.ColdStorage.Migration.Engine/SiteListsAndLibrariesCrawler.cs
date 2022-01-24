@@ -65,6 +65,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private async Task ProcessWeb(Web web)
         {
+            Console.WriteLine($"Reading {web.ServerRelativeUrl}...");
             _spClient.Load(web.Lists);
             await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
@@ -73,8 +74,10 @@ namespace SPO.ColdStorage.Migration.Engine
                 _spClient.Load(list, l => l.IsSystemList);
                 await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
-                if (!list.Hidden && !list.IsSystemList)
+                // Do not search through system or hidden lists
+                if (!list.Hidden && !list.IsSystemList && !list.NoCrawl)
                 {
+                    Console.WriteLine($"\nCrawling {list.Title}...");
                     await CrawlList(list);
                 }
             }

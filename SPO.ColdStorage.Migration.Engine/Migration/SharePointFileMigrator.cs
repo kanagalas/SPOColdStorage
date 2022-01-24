@@ -121,6 +121,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 log = new FileMigrationErrorLog { File = errorFile };
                 _db.FileMigrationErrors.Add(log);
             }
+            log.Error = ex.ToString();
             log.TimeStamp = DateTime.Now;
 
             await _db.SaveChangesAsync();
@@ -128,7 +129,8 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         async Task<Entities.DBEntities.File> GetDbFileForFileInfo(SharePointFileInfo fileMigrated)
         {
             // Find/create web & site
-            var fileSite = await _db.Sites.Where(f => f.Url.ToLower() == fileMigrated.SiteUrl.ToLower()).FirstOrDefaultAsync();
+            var fileSite = await _db.Sites
+                .Where(f => f.Url.ToLower() == fileMigrated.SiteUrl.ToLower()).FirstOrDefaultAsync();
             if (fileSite == null)
             {
                 fileSite = new Entities.DBEntities.Site

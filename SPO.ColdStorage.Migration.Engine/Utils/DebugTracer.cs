@@ -49,7 +49,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             if (severityLevel != Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose)
             {
-                Console.WriteLine(sayWut);
+                Console.WriteLine($"[{DateTime.Now.ToString("G")}] {sayWut}");
             }
 
             if (AppInsights != null)
