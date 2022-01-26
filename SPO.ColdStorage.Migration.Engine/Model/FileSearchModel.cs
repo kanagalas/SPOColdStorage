@@ -11,12 +11,12 @@ namespace SPO.ColdStorage.Migration.Engine.Model
         public FileSearchModel(SharePointFileInfo sharePointFileInfo)
         {
 
-            var fileNameArray = sharePointFileInfo.FileRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var fileNameArray = sharePointFileInfo.ServerRelativeFilePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
             this.FileTitle = System.Net.WebUtility.UrlDecode(fileNameArray.LastOrDefault()) ?? String.Empty;
             this.Dir = GetDir(fileNameArray);
 
-            this.FileId = StringUtils.Base64Encode(sharePointFileInfo.FileRelativePath);
+            this.FileId = StringUtils.Base64Encode(sharePointFileInfo.ServerRelativeFilePath);
         }
 
 

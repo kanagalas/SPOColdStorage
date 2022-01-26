@@ -73,7 +73,7 @@ namespace SPO.ColdStorage.Migration.Engine
             var msg = System.Text.Json.JsonSerializer.Deserialize<SharePointFileInfo>(body);
             if (msg != null && msg.IsValidInfo)
             {
-                _tracer.TrackTrace($"Started migration for: {msg.FileRelativePath}");
+                _tracer.TrackTrace($"Started migration for: {msg.ServerRelativeFilePath}");
 
 
                 // Fire & forget file migration on background thread. Message completed on success.
@@ -113,7 +113,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 return;
             }
 
-            _ignoreDownloads.Add(sharePointFileToMigrate.FileRelativePath);
+            _ignoreDownloads.Add(sharePointFileToMigrate.ServerRelativeFilePath);
 
             // Begin migration on common class
             using (var sharePointFileMigrator = new SharePointFileMigrator(_config, _tracer))
@@ -152,7 +152,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     try
                     {
                         await args.CompleteMessageAsync(args.Message);
-                        _tracer.TrackTrace($"'{sharePointFileToMigrate.FileRelativePath}' ({migratedFileSize.ToString("N0")} bytes) migrated succesfully.");
+                        _tracer.TrackTrace($"'{sharePointFileToMigrate.ServerRelativeFilePath}' ({migratedFileSize.ToString("N0")} bytes) migrated succesfully.");
 
                     }
                     catch (ServiceBusException ex)

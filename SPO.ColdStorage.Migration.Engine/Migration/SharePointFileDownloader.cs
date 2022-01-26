@@ -34,7 +34,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
             var auth = await _app.AuthForSharePointOnline(_config.BaseServerAddress);
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
-            var url = $"{sharePointFile.WebUrl}/_api/web/GetFileByServerRelativeUrl('{sharePointFile.FileRelativePath}')/OpenBinaryStream";
+            var url = $"{sharePointFile.WebUrl}/_api/web/GetFileByServerRelativeUrl('{sharePointFile.ServerRelativeFilePath}')/OpenBinaryStream";
 
             long fileSize = 0;
 
@@ -58,7 +58,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
         public static string GetTempFileNameAndCreateDir(SharePointFileInfo sharePointFile)
         {
-            var tempFileName = Path.GetTempPath() + DateTime.Now.Ticks + @"\" + sharePointFile.FileRelativePath.Replace("/", @"\");
+            var tempFileName = Path.GetTempPath() + DateTime.Now.Ticks + @"\" + sharePointFile.ServerRelativeFilePath.Replace("/", @"\");
             var tempFileInfo = new FileInfo(tempFileName);
             Directory.CreateDirectory(tempFileInfo.DirectoryName!);
 

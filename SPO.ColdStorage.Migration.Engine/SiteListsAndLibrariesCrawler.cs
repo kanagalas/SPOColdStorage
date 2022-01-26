@@ -9,6 +9,8 @@ namespace SPO.ColdStorage.Migration.Engine
     /// </summary>
     public class SiteListsAndLibrariesCrawler
     {
+        #region Constructors & Privates
+
         private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
         public event Func<SharePointFileInfo, Task>? _callback;
@@ -24,34 +26,12 @@ namespace SPO.ColdStorage.Migration.Engine
             this._callback = callback;
         }
 
-        async Task EnsureLoaded()
-        {
-            var loaded = false;
-            try
-            {
-                // Test if this will blow up
-                var url = _spClient.Web.Url;
-                url = _spClient.Site.Url;
-                loaded = true;
-            }
-            catch (PropertyOrFieldNotInitializedException)
-            {
-                loaded = false;
-            }
+        #endregion
 
-            if (!loaded)
-            {
-                _spClient.Load(_spClient.Web);
-                _spClient.Load(_spClient.Site, s => s.Url);
-                await _spClient.ExecuteQueryAsyncWithThrottleRetries();
-            }
-        }
-
-
-        public async Task CrawlContextWeb()
+        public async Task CrawlContextRootWebAndSubwebs()
         {
             var rootWeb = _spClient.Web;
-            await EnsureLoaded();
+            await EnsureContextWebIsLoaded();
             _spClient.Load(rootWeb.Webs);
             await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
@@ -65,7 +45,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private async Task ProcessWeb(Web web)
         {
-            Console.WriteLine($"Reading {web.ServerRelativeUrl}...");
+            Console.WriteLine($"Reading web '{web.ServerRelativeUrl}'...");
             _spClient.Load(web.Lists);
             await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
@@ -77,15 +57,22 @@ namespace SPO.ColdStorage.Migration.Engine
                 // Do not search through system or hidden lists
                 if (!list.Hidden && !list.IsSystemList && !list.NoCrawl)
                 {
-                    Console.WriteLine($"\nCrawling {list.Title}...");
+                    _tracer.TrackTrace($"\nCrawling '{list.Title}'...");
                     await CrawlList(list);
+                }
+                else
+                {
+                    if (!list.NoCrawl)
+                    {
+                        _tracer.TrackTrace($"\nIgnoring '{list.Title}' - NoCrawl set on list.");
+                    }
                 }
             }
         }
 
         public async Task<List<SharePointFileInfo>> CrawlList(List list)
         {
-            await EnsureLoaded();
+            await EnsureContextWebIsLoaded();
             _spClient.Load(list, l => l.BaseType, l => l.ItemCount);
             await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
@@ -139,6 +126,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     Console.WriteLine($"Got error reading list: {ex.Message}.");
                 }
 
+                // Remember position, if more than 5000 items are in the list
                 currentPosition = listItems.ListItemCollectionPosition;
                 foreach (var item in listItems)
                 {
@@ -206,6 +194,29 @@ namespace SPO.ColdStorage.Migration.Engine
         }
 
 
+        async Task EnsureContextWebIsLoaded()
+        {
+            var loaded = false;
+            try
+            {
+                // Test if this will blow up
+                var url = _spClient.Web.Url;
+                url = _spClient.Site.Url;
+                loaded = true;
+            }
+            catch (PropertyOrFieldNotInitializedException)
+            {
+                loaded = false;
+            }
+
+            if (!loaded)
+            {
+                _spClient.Load(_spClient.Web);
+                _spClient.Load(_spClient.Site, s => s.Url);
+                await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+            }
+        }
+
         SharePointFileInfo GetSharePointFileInfo(ListItem item, string url)
         {
             var dt = DateTime.MinValue;
@@ -218,7 +229,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     return new SharePointFileInfo
                     {
                         Author = !string.IsNullOrEmpty(authorVal.Email) ? authorVal.Email : authorVal.LookupValue,
-                        FileRelativePath = url,
+                        ServerRelativeFilePath = url,
                         LastModified = dt,
                         WebUrl = _spClient.Web.Url,
                         SiteUrl = _spClient.Site.Url

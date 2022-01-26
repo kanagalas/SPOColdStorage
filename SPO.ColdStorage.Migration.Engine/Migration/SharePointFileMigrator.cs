@@ -2,7 +2,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
-using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
@@ -47,7 +46,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         public async Task<bool> DoesSharePointFileNeedMigrating(SharePointFileInfo sharePointFileInfo, BlobContainerClient containerClient)
         {
             // Check if blob exists in account
-            var fileRef = containerClient.GetBlobClient(sharePointFileInfo.FileRelativePath);
+            var fileRef = containerClient.GetBlobClient(sharePointFileInfo.ServerRelativeFilePath);
             var fileExistsInAzureBlob = await fileRef.ExistsAsync();
 
             // Verify version migrated in SQL

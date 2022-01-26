@@ -51,10 +51,10 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             var ctx = await AuthUtils.GetClientContext(_config, siteUrl);
 
-            _tracer.TrackTrace($"Scanning site '{siteUrl}'...");
+            _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound);
-            await crawler.CrawlContextWeb();
+            await crawler.CrawlContextRootWebAndSubwebs();
         }
 
         /// <summary>
