@@ -80,6 +80,7 @@ namespace SPO.ColdStorage.Tests
             };
             Assert.IsFalse(invalidMsg3.IsValidInfo);
 
+            // Valid test; no folders
             var validMsg1 = new SharePointFileInfo
             {
                 ServerRelativeFilePath = "/subweb1/whatever",
@@ -88,8 +89,31 @@ namespace SPO.ColdStorage.Tests
                 LastModified = DateTime.Now
             };
             Assert.IsTrue(validMsg1.IsValidInfo);
+            Assert.IsTrue(validMsg1.FullSharePointUrl == "https://m365x352268.sharepoint.com/subweb1/whatever");
 
-            Assert.IsTrue(validMsg1.FullUrl == "https://m365x352268.sharepoint.com/subweb1/whatever");
+
+            // Invalid folder - has leading/trailing slashes
+            var invalidMsg4 = new SharePointFileInfo
+            {
+                ServerRelativeFilePath = "/subweb1/whatever",
+                Subfolder = "/sub1/sub2",
+                SiteUrl = "https://m365x352268.sharepoint.com",
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1",
+                LastModified = DateTime.Now
+            };
+            Assert.IsFalse(invalidMsg4.IsValidInfo);
+
+            // Valid test; with folders
+            var validMsg2 = new SharePointFileInfo
+            {
+                ServerRelativeFilePath = "/subweb1/whatever",
+                Subfolder = "sub1/sub2",
+                SiteUrl = "https://m365x352268.sharepoint.com",
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1",
+                LastModified = DateTime.Now
+            };
+            Assert.IsTrue(validMsg2.IsValidInfo);
+            Assert.IsTrue(validMsg2.FullSharePointUrl == "https://m365x352268.sharepoint.com/subweb1/sub1/sub2/whatever");
         }
     }
 }

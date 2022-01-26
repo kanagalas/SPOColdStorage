@@ -105,10 +105,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private async Task StartFileMigrationAsync(SharePointFileInfo sharePointFileToMigrate, ProcessMessageEventArgs args)
         {
-            string thisFileRef = sharePointFileToMigrate.FullUrl;
+            string thisFileRef = sharePointFileToMigrate.FullSharePointUrl;
             if (_ignoreDownloads.Contains(thisFileRef))
             {
-                _tracer.TrackTrace($"Already currently importing file '{sharePointFileToMigrate.FullUrl}'. Won't do it twice this session.",
+                _tracer.TrackTrace($"Already currently importing file '{sharePointFileToMigrate.FullSharePointUrl}'. Won't do it twice this session.",
                     Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
                 return;
             }
@@ -131,7 +131,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 catch (Exception ex)
                 {
                     _tracer.TrackException(ex);
-                    _tracer.TrackTrace($"ERROR: Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullUrl}'. Will try again",
+                    _tracer.TrackTrace($"ERROR: Got fatal error '{ex.Message}' importing file '{sharePointFileToMigrate.FullSharePointUrl}'. Will try again",
                         Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
 
                     await sharePointFileMigrator.SaveErrorForFileMigrationToSql(ex, sharePointFileToMigrate);
@@ -141,7 +141,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     // Import done/failed - remove from list of current imports
                     if (!_ignoreDownloads.TryTake(out thisFileRef!))
                     {
-                        _tracer.TrackTrace($"Error removing file '{sharePointFileToMigrate.FullUrl}' from list of concurrent operations. Not sure what to do.",
+                        _tracer.TrackTrace($"Error removing file '{sharePointFileToMigrate.FullSharePointUrl}' from list of concurrent operations. Not sure what to do.",
                             Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
                     }
                 }

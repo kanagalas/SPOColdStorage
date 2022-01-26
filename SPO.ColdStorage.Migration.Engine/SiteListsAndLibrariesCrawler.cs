@@ -57,14 +57,14 @@ namespace SPO.ColdStorage.Migration.Engine
                 // Do not search through system or hidden lists
                 if (!list.Hidden && !list.IsSystemList && !list.NoCrawl)
                 {
-                    _tracer.TrackTrace($"\nCrawling '{list.Title}'...");
+                    _tracer.TrackTrace($"Crawling '{list.Title}'...");
                     await CrawlList(list);
                 }
                 else
                 {
                     if (!list.NoCrawl)
                     {
-                        _tracer.TrackTrace($"\nIgnoring '{list.Title}' - NoCrawl set on list.");
+                        _tracer.TrackTrace($"Ignoring '{list.Title}' - NoCrawl set on list.");
                     }
                 }
             }
@@ -73,7 +73,7 @@ namespace SPO.ColdStorage.Migration.Engine
         public async Task<List<SharePointFileInfo>> CrawlList(List list)
         {
             await EnsureContextWebIsLoaded();
-            _spClient.Load(list, l => l.BaseType, l => l.ItemCount);
+            _spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
             await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
             var results = new List<SharePointFileInfo>();
@@ -102,7 +102,9 @@ namespace SPO.ColdStorage.Migration.Engine
                                         item => item["Modified"],
                                         item => item["Editor"],
                                         item => item.File.Exists,
-                                        item => item.File.ServerRelativeUrl));
+                                        item => item.File.ServerRelativeUrl
+                                    )
+                                );
                 }
                 else
                 {
@@ -114,7 +116,9 @@ namespace SPO.ColdStorage.Migration.Engine
                                         item => item["Modified"],
                                         item => item["Editor"],
                                         item => item.File.Exists,
-                                        item => item.File.ServerRelativeUrl));
+                                        item => item.File.ServerRelativeUrl
+                                    )
+                                );
                 }
 
                 try
@@ -133,11 +137,11 @@ namespace SPO.ColdStorage.Migration.Engine
                     SharePointFileInfo? foundFileInfo = null;
                     if (list.BaseType == BaseType.GenericList)
                     {
-                        results.AddRange(await ProcessListItemAttachments(item));
+                        results.AddRange(await ProcessListItemAttachments(item, list.RootFolder.ServerRelativeUrl));
                     }
                     else if (list.BaseType == BaseType.DocumentLibrary)
                     {
-                        foundFileInfo = await ProcessDocLibItem(item);
+                        foundFileInfo = await ProcessDocLibItem(item, list.RootFolder.ServerRelativeUrl);
                     }
                     if (foundFileInfo != null)
                         results.Add(foundFileInfo!);
@@ -151,7 +155,7 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process document library item.
         /// </summary>
-        private async Task<SharePointFileInfo?> ProcessDocLibItem(ListItem docListItem)
+        private async Task<SharePointFileInfo?> ProcessDocLibItem(ListItem docListItem, string listServerRelativeUrl)
         {
             switch (docListItem.FileSystemObjectType)
             {
@@ -159,7 +163,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
                     if (docListItem.File.Exists)
                     {
-                        var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl);
+                        var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl, listServerRelativeUrl);
                         if (_callback != null)
                         {
                             await this._callback(foundFileInfo);
@@ -176,13 +180,13 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process custom list item attachments
         /// </summary>
-        private async Task<List<SharePointFileInfo>> ProcessListItemAttachments(ListItem item)
+        private async Task<List<SharePointFileInfo>> ProcessListItemAttachments(ListItem item, string listServerRelativeUrl)
         {
             var attachmentsResults = new List<SharePointFileInfo>();
 
             foreach (var attachment in item.AttachmentFiles)
             {
-                var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl);
+                var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl, listServerRelativeUrl);
                 if (_callback != null)
                 {
                     await this._callback(foundFileInfo);
@@ -217,8 +221,22 @@ namespace SPO.ColdStorage.Migration.Engine
             }
         }
 
-        SharePointFileInfo GetSharePointFileInfo(ListItem item, string url)
+        SharePointFileInfo GetSharePointFileInfo(ListItem item, string url, string listServerRelativeUrl)
         {
+            var dir = "";
+            if (item.FieldValues.ContainsKey("FileDirRef"))
+            {
+                dir = item.FieldValues["FileDirRef"].ToString();
+                if (dir!.StartsWith(listServerRelativeUrl))
+                {
+                    dir = dir.Substring(listServerRelativeUrl.Length);
+                }
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(item), "Can't find dir column");
+            }
+
             var dt = DateTime.MinValue;
             if (DateTime.TryParse(item.FieldValues["Modified"]?.ToString(), out dt))
             {
@@ -232,7 +250,8 @@ namespace SPO.ColdStorage.Migration.Engine
                         ServerRelativeFilePath = url,
                         LastModified = dt,
                         WebUrl = _spClient.Web.Url,
-                        SiteUrl = _spClient.Site.Url
+                        SiteUrl = _spClient.Site.Url,
+                        Subfolder = dir.TrimEnd("/".ToCharArray())
                     };
                 }
                 else

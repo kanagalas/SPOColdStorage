@@ -30,7 +30,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             // Write to temp file
             var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
-            _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
+            _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullSharePointUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
 
             var auth = await _app.AuthForSharePointOnline(_config.BaseServerAddress);
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
