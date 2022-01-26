@@ -1,6 +1,7 @@
 ﻿using Azure.Messaging.ServiceBus;
 using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
@@ -68,10 +69,10 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Download from SP and upload to blob-storage
         /// </summary>
-        public async Task<long> MigrateFromSharePointToBlobStorage(SharePointFileInfo fileToMigrate, ClientContext ctx)
+        public async Task<long> MigrateFromSharePointToBlobStorage(SharePointFileInfo fileToMigrate, IConfidentialClientApplication app)
         {
             // Download from SP to local
-            var downloader = new SharePointFileDownloader(ctx, _config, _tracer);
+            var downloader = new SharePointFileDownloader(app, _config, _tracer);
             var tempFileNameAndSize = await downloader.DownloadFileToTempDir(fileToMigrate);
 
             // Upload local file to az blob

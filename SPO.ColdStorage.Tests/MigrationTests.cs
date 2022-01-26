@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Identity.Client;
 using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPO.ColdStorage.Entities;
@@ -44,6 +45,7 @@ namespace SPO.ColdStorage.Tests
         }
         #endregion
 
+
         /// <summary>
         /// Runs nearly all tests without using Service Bus. Creates a new file in SP, then migrates it to Azure Blob, and verifies the contents.
         /// </summary>
@@ -52,7 +54,8 @@ namespace SPO.ColdStorage.Tests
         {
             var migrator = new SharePointFileMigrator(_config!, _tracer);
 
-            var ctx = await AuthUtils.GetClientContext(_config!, _config!.DevConfig.DefaultSharePointSite);
+            var app = await AuthUtils.GetNewClientApp(_config!);
+            var ctx = await AuthUtils.GetClientContext(app, _config!.BaseServerAddress, _config!.DevConfig.DefaultSharePointSite);
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");
@@ -70,7 +73,7 @@ namespace SPO.ColdStorage.Tests
             Assert.IsNotNull(discoveredFile);
 
             // Migrate the file to az blob
-            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile, ctx);
+            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile, app);
 
             // Download file again from az blob
             var tempLocalFile = SharePointFileDownloader.GetTempFileNameAndCreateDir(discoveredFile);
@@ -95,7 +98,9 @@ namespace SPO.ColdStorage.Tests
         {
             var migrator = new SharePointFileMigrator(_config!, _tracer);
 
-            var ctx = await AuthUtils.GetClientContext(_config!, _config!.DevConfig.DefaultSharePointSite);
+
+            var app = await AuthUtils.GetNewClientApp(_config!);
+            var ctx = await AuthUtils.GetClientContext(app, _config!.BaseServerAddress, _config!.DevConfig.DefaultSharePointSite);
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");
@@ -112,7 +117,7 @@ namespace SPO.ColdStorage.Tests
             Assert.IsTrue(needsMigratingBeforeMigration);
 
             // Migrate the file to az blob & save result to SQL 
-            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
+            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, app);
             await migrator.SaveSucessfulFileMigrationToSql(discoveredFile!);
 
             // Now SharePointFileNeedsMigrating should be false
@@ -129,7 +134,7 @@ namespace SPO.ColdStorage.Tests
             Assert.IsTrue(needsMigratingPostEdit);
 
             // Migrate again edited file, save to SQL & check status one last time
-            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, ctx);
+            await migrator.MigrateFromSharePointToBlobStorage(discoveredFile!, app);
             await migrator.SaveSucessfulFileMigrationToSql(discoveredFile!);
 
             needsMigratingPostMigration = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
@@ -150,11 +155,28 @@ namespace SPO.ColdStorage.Tests
             var testMsg = new SharePointFileInfo
             { 
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite, 
+                WebUrl = _config!.DevConfig.DefaultSharePointSite,
                 FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
             };
-            var ctx = await AuthUtils.GetClientContext(_config!, testMsg.SiteUrl);
+            var app = await AuthUtils.GetNewClientApp(_config);
 
-            var m = new SharePointFileDownloader(ctx, _config!, _tracer);
+            var m = new SharePointFileDownloader(app, _config!, _tracer);
+            await m.DownloadFileToTempDir(testMsg);
+        }
+
+
+        [TestMethod]
+        public async Task LargeSharePointFileDownloaderTests()
+        {
+            var testMsg = new SharePointFileInfo
+            {
+                SiteUrl = _config!.DevConfig.DefaultSharePointSite,
+                WebUrl = _config!.DevConfig.DefaultSharePointSite,
+                FileRelativePath = "/sites/MigrationHost/BigFiles/BigFile"
+            };
+            var app = await AuthUtils.GetNewClientApp(_config);
+
+            var m = new SharePointFileDownloader(app, _config!, _tracer);
             await m.DownloadFileToTempDir(testMsg);
         }
 

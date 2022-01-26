@@ -3,20 +3,25 @@ using Azure.Security.KeyVault.Secrets;
 using Microsoft.Identity.Client;
 using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities.Configuration;
+using SPO.ColdStorage.Migration.Engine.Utils;
 using System.Security.Cryptography.X509Certificates;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
     public class AuthUtils
     {
-        static async Task<X509Certificate2> RetrieveKeyVaultCertificate(string name, string tenantId, string clientId, string clientSecret, string keyVaultUrl)
+        private static X509Certificate2? _cachedCert = null;
+        public static async Task<X509Certificate2> RetrieveKeyVaultCertificate(string name, string tenantId, string clientId, string clientSecret, string keyVaultUrl)
         {
-            var client = new SecretClient(vaultUri: new Uri(keyVaultUrl), credential: new ClientSecretCredential(tenantId, clientId, clientSecret));
+            if (_cachedCert == null)
+            {
+                var client = new SecretClient(vaultUri: new Uri(keyVaultUrl), credential: new ClientSecretCredential(tenantId, clientId, clientSecret));
 
-            var secret = await client.GetSecretAsync(name);
+                var secret = await client.GetSecretAsync(name);
 
-            var certificate = new X509Certificate2(Convert.FromBase64String(secret.Value.Value));
-            return certificate;
+                _cachedCert = new X509Certificate2(Convert.FromBase64String(secret.Value.Value));
+            }
+            return _cachedCert;
 
         }
 
@@ -52,14 +57,8 @@ namespace SPO.ColdStorage.Migration.Engine
                 throw new ArgumentException($"'{nameof(baseServerAddress)}' cannot be null or empty.", nameof(baseServerAddress));
             }
 
-            var appRegistrationCert = await AuthUtils.RetrieveKeyVaultCertificate("AzureAutomationSPOAccess", tenantId, clientId, clientSecret, keyVaultUrl);
-            var app = ConfidentialClientApplicationBuilder.Create(clientId)
-                                                  .WithCertificate(appRegistrationCert)
-                                                  .WithAuthority($"https://login.microsoftonline.com/{tenantId}")
-                                                  .Build();
-            var scopes = new string[] { $"{baseServerAddress}/.default" };
-            var result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
-
+            var app = await GetNewClientApp(tenantId, clientId, clientSecret, keyVaultUrl);
+            var result = await app.AuthForSharePointOnline(baseServerAddress);
 
             var ctx = new ClientContext(siteUrl);
             ctx.ExecutingWebRequest += (s, e) =>
@@ -67,13 +66,58 @@ namespace SPO.ColdStorage.Migration.Engine
                 e.WebRequestExecutor.RequestHeaders["Authorization"] = "Bearer " + result.AccessToken;
             };
 
+            ctx.Load(ctx.Web);
+            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+
             return ctx;
+        }
+        public async static Task<ClientContext> GetClientContext(IConfidentialClientApplication app, string baseServerAddress, string siteUrl)
+        {
+            var result = await app.AuthForSharePointOnline(baseServerAddress);
+
+            var ctx = new ClientContext(siteUrl);
+            ctx.ExecutingWebRequest += (s, e) =>
+            {
+                e.WebRequestExecutor.RequestHeaders["Authorization"] = "Bearer " + result.AccessToken;
+            };
+
+            ctx.Load(ctx.Web);
+            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+
+            return ctx;
+        }
+
+        public static async Task<IConfidentialClientApplication> GetNewClientApp(string tenantId, string clientId, string clientSecret, string keyVaultUrl)
+        {
+            var appRegistrationCert = await AuthUtils.RetrieveKeyVaultCertificate("AzureAutomationSPOAccess", tenantId, clientId, clientSecret, keyVaultUrl);
+            var app = ConfidentialClientApplicationBuilder.Create(clientId)
+                                                  .WithCertificate(appRegistrationCert)
+                                                  .WithAuthority($"https://login.microsoftonline.com/{tenantId}")
+                                                  .Build();
+
+            return app;
         }
 
         public static async Task<ClientContext> GetClientContext(Config config, string siteUrl)
         {
             return await GetClientContext(siteUrl, config.AzureAdConfig.TenantId!, config.AzureAdConfig.ClientID!,
                 config.AzureAdConfig.Secret!, config.KeyVaultUrl, config.BaseServerAddress);
+        }
+
+        public static async Task<IConfidentialClientApplication> GetNewClientApp(Config config)
+        {
+            return await GetNewClientApp(config.AzureAdConfig.TenantId!, 
+                config.AzureAdConfig.ClientID!, config.AzureAdConfig.Secret!, config.KeyVaultUrl);
+        }
+    }
+
+    public static class ConfidentialClientApplicationAuth
+    {
+        public async static Task<AuthenticationResult> AuthForSharePointOnline(this IConfidentialClientApplication app, string baseServerAddress)
+        {
+            var scopes = new string[] { $"{baseServerAddress}/.default" };
+            var result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
+            return result;
         }
     }
 }

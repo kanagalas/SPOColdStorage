@@ -1,6 +1,7 @@
-﻿using Microsoft.SharePoint.Client;
+﻿using Microsoft.Identity.Client;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Model;
+using System.Net.Http.Headers;
 
 namespace SPO.ColdStorage.Migration.Engine.Migration
 {
@@ -9,39 +10,47 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
     /// </summary>
     public class SharePointFileDownloader : BaseComponent
     {
-        private ClientContext _context;
-        public SharePointFileDownloader(ClientContext clientContext, Config config, DebugTracer debugTracer) :base(config, debugTracer)
+        private readonly IConfidentialClientApplication _app;
+        private readonly HttpClient _client;
+        public SharePointFileDownloader(IConfidentialClientApplication app, Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
-            _context = clientContext;
+            _app = app;
+            _client = new HttpClient();
         }
 
         /// <summary>
         /// Download file & return temp file-name + size
         /// </summary>
-        public async Task<(string, long)> DownloadFileToTempDir(SharePointFileInfo sharePointFile) 
+        /// <remarks>
+        /// Uses manual HTTP calls as CSOM doesn't work with files > 2gb. 
+        /// This routine writes 2mb chunks at a time to a temp file from HTTP response.
+        /// </remarks>
+        public async Task<(string, long)> DownloadFileToTempDir(SharePointFileInfo sharePointFile)
         {
-            _context.Load(_context.Web);
-            var filetoDownload = _context.Web.GetFileByServerRelativeUrl(sharePointFile.FileRelativePath);
-            _context.Load(filetoDownload);
-            await _context.ExecuteQueryAsync();
-
             // Write to temp file
             var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
             _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
 
-            var spStreamResult = filetoDownload.OpenBinaryStream();
-            await _context.ExecuteQueryAsync();
+            var auth = await _app.AuthForSharePointOnline(_config.BaseServerAddress);
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+            var url = $"{sharePointFile.WebUrl}/_api/web/GetFileByServerRelativeUrl('{sharePointFile.FileRelativePath}')/OpenBinaryStream";
 
-            var fileSize = spStreamResult.Value.Length;
-            using (var fs = spStreamResult.Value)
+            long fileSize = 0;
+
+            // Get response but don't buffer full content (which will buffer overlflow for large files)
+            using (var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
             {
-                using (var fileStream = System.IO.File.Create(tempFileName))
+                response.EnsureSuccessStatusCode();
+
+                using (var streamToReadFrom = await response.Content.ReadAsStreamAsync())
+                using (var streamToWriteTo = File.Open(tempFileName, FileMode.Create))
                 {
-                    spStreamResult.Value.Seek(0, SeekOrigin.Begin);
-                    spStreamResult.Value.CopyTo(fileStream);
+                    await streamToReadFrom.CopyToAsync(streamToWriteTo);
+                    fileSize = streamToWriteTo.Length;
                 }
             }
+
             _tracer.TrackTrace($"Wrote {fileSize.ToString("N0")} bytes to '{tempFileName}'.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
 
             return (tempFileName, fileSize);

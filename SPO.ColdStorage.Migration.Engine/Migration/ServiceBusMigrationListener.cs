@@ -119,13 +119,13 @@ namespace SPO.ColdStorage.Migration.Engine
             using (var sharePointFileMigrator = new SharePointFileMigrator(_config, _tracer))
             {
                 // Find/create SP context
-                var ctx = await AuthUtils.GetClientContext(_config, sharePointFileToMigrate.SiteUrl);
+                var app = await AuthUtils.GetNewClientApp(_config);
 
                 long migratedFileSize = 0;
                 bool success = false;
                 try
                 {
-                    migratedFileSize = await sharePointFileMigrator.MigrateFromSharePointToBlobStorage(sharePointFileToMigrate, ctx);
+                    migratedFileSize = await sharePointFileMigrator.MigrateFromSharePointToBlobStorage(sharePointFileToMigrate, app);
                     success = true;
                 }
                 catch (Exception ex)
