@@ -14,6 +14,8 @@ namespace SPO.ColdStorage.Migration.Engine
     /// </summary>
     public class SharePointContentIndexer : BaseComponent
     {
+        #region Constructors & Privates
+
         private BlobServiceClient _blobServiceClient;
         private BlobContainerClient? _containerClient;
         private SharePointFileMigrator _sharePointFileMigrator;
@@ -29,6 +31,8 @@ namespace SPO.ColdStorage.Migration.Engine
             _sharePointFileMigrator = new SharePointFileMigrator(config, _tracer);
         }
 
+        #endregion
+
         public async Task StartMigrateAllSites()
         {
             // Create the container and return a container client object
@@ -42,15 +46,24 @@ namespace SPO.ColdStorage.Migration.Engine
                 var sitesToMigrate = await db.TargetSharePointSites.ToListAsync();
                 foreach (var s in sitesToMigrate)
                 {
-                    await StartSiteMigration(s.RootURL,
-                        new SiteListFilterConfig()
+                    SiteListFilterConfig? siteFilterConfig = null;
+                    if (!string.IsNullOrEmpty(s.FilterConfigJson))
+                    {
+                        try
                         {
-                            ListFilterConfig = new List<ListFolderConfig>
-                            {
-                                new ListFolderConfig{ ListTitle = "Custom List", 
-                                    FolderWhiteList = new List<string>{ "Subfolder", "Subfolder/Another subfolder" } }
-                            }
-                        });
+                            siteFilterConfig = System.Text.Json.JsonSerializer.Deserialize<SiteListFilterConfig>(s.FilterConfigJson);
+                        }
+                        catch (Exception ex)
+                        {
+                            _tracer.TrackTrace($"Couldn't deserialise filter JSon for site '{s.RootURL}': {ex.Message}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                        }
+                    }
+                    
+                    // Instantiate "allow all" config if none can be found in the DB
+                    if (siteFilterConfig == null)
+                        siteFilterConfig = new SiteListFilterConfig();
+
+                    await StartSiteMigration(s.RootURL, siteFilterConfig);
                 }
             }
         }
