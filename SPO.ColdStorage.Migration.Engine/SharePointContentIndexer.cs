@@ -42,19 +42,27 @@ namespace SPO.ColdStorage.Migration.Engine
                 var sitesToMigrate = await db.TargetSharePointSites.ToListAsync();
                 foreach (var s in sitesToMigrate)
                 {
-                    await StartSiteMigration(s.RootURL);
+                    await StartSiteMigration(s.RootURL,
+                        new SiteListFilterConfig()
+                        {
+                            ListFilterConfig = new List<ListFolderConfig>
+                            {
+                                new ListFolderConfig{ ListTitle = "Custom List", 
+                                    FolderWhiteList = new List<string>{ "Subfolder", "Subfolder/Another subfolder" } }
+                            }
+                        });
                 }
             }
         }
 
-        async Task StartSiteMigration(string siteUrl)
+        async Task StartSiteMigration(string siteUrl, SiteListFilterConfig siteFolderConfig)
         {
             var ctx = await AuthUtils.GetClientContext(_config, siteUrl);
 
             _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound);
-            await crawler.CrawlContextRootWebAndSubwebs();
+            await crawler.CrawlContextRootWebAndSubwebs(siteFolderConfig);
         }
 
         /// <summary>

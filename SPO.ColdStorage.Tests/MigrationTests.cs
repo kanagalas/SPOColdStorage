@@ -165,20 +165,6 @@ namespace SPO.ColdStorage.Tests
         }
 
 
-        [TestMethod]
-        public async Task LargeSharePointFileDownloaderTests()
-        {
-            var testMsg = new SharePointFileInfo
-            {
-                SiteUrl = _config!.DevConfig.DefaultSharePointSite,
-                WebUrl = _config!.DevConfig.DefaultSharePointSite,
-                ServerRelativeFilePath = "/sites/MigrationHost/BigFiles/BigFile"
-            };
-            var app = await AuthUtils.GetNewClientApp(_config);
-
-            var m = new SharePointFileDownloader(app, _config!, _tracer);
-            await m.DownloadFileToTempDir(testMsg);
-        }
 
         [TestMethod]
         public async Task BlobStorageFileUploadTests()

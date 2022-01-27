@@ -21,6 +21,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// <summary>
         /// Download file & return temp file-name + size
         /// </summary>
+        /// <returns>Temp file-path and size</returns>
         /// <remarks>
         /// Uses manual HTTP calls as CSOM doesn't work with files > 2gb. 
         /// This routine writes 2mb chunks at a time to a temp file from HTTP response.
@@ -58,7 +59,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
 
         public static string GetTempFileNameAndCreateDir(SharePointFileInfo sharePointFile)
         {
-            var tempFileName = Path.GetTempPath() + DateTime.Now.Ticks + @"\" + sharePointFile.ServerRelativeFilePath.Replace("/", @"\");
+            var tempFileName = Path.GetTempPath() + @"\SpoColdStorageMigration\" + DateTime.Now.Ticks + @"\" + sharePointFile.ServerRelativeFilePath.Replace("/", @"\");
             var tempFileInfo = new FileInfo(tempFileName);
             Directory.CreateDirectory(tempFileInfo.DirectoryName!);
 

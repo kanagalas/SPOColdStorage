@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPO.ColdStorage.Migration.Engine.Model;
 using System;
+using System.Collections.Generic;
 
 namespace SPO.ColdStorage.Tests
 {
@@ -103,17 +104,36 @@ namespace SPO.ColdStorage.Tests
             };
             Assert.IsFalse(invalidMsg4.IsValidInfo);
 
-            // Valid test; with folders
-            var validMsg2 = new SharePointFileInfo
+        }
+
+
+        [TestMethod]
+        public void SiteFolderConfigTests()
+        {
+            var cfg = new SiteListFilterConfig()
             {
-                ServerRelativeFilePath = "/subweb1/whatever",
-                Subfolder = "sub1/sub2",
-                SiteUrl = "https://m365x352268.sharepoint.com",
-                WebUrl = "https://m365x352268.sharepoint.com/subweb1",
-                LastModified = DateTime.Now
+                ListFilterConfig = new List<ListFolderConfig>
+                            {
+                                new ListFolderConfig{ ListTitle = "Documents" },
+                                new ListFolderConfig{ ListTitle = "Custom List", 
+                                    FolderWhiteList = new List<string>{ "Subfolder", "Subfolder/Another subfolder" } }
+                            }
             };
-            Assert.IsTrue(validMsg2.IsValidInfo);
-            Assert.IsTrue(validMsg2.FullSharePointUrl == "https://m365x352268.sharepoint.com/subweb1/sub1/sub2/whatever");
+            Assert.IsTrue(cfg.IncludeListInMigration("Documents"));
+            Assert.IsFalse(cfg.IncludeListInMigration("Docs"));
+
+            Assert.IsTrue(cfg.IncludeFolderInMigration("Custom List", "Subfolder"));
+            Assert.IsTrue(cfg.IncludeFolderInMigration("Custom List", "Subfolder/Another subfolder"));
+            Assert.IsFalse(cfg.IncludeFolderInMigration("Custom List", "Some other folder"));
+
+            // Root folder
+            Assert.IsTrue(cfg.IncludeFolderInMigration("Custom List", ""));
+
+
+            // No config set
+            Assert.IsTrue(new SiteListFilterConfig().IncludeListInMigration("Documents"));
+            Assert.IsTrue(new SiteListFilterConfig().IncludeFolderInMigration("Documents2", "whatever"));
+
         }
     }
 }

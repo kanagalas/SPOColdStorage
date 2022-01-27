@@ -13,37 +13,38 @@ namespace SPO.ColdStorage.Migration.Engine
 
         private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
-        public event Func<SharePointFileInfo, Task>? _callback;
+        public event Func<SharePointFileInfo, Task>? _foundFileToMigrateCallback;
 
         public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer) : this(clientContext, tracer, null)
         {
         }
 
-        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer, Func<SharePointFileInfo, Task>? callback)
+        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer, Func<SharePointFileInfo, Task>? foundFileToMigrateCallback)
         {
             this._spClient = clientContext;
             this._tracer = tracer;
-            this._callback = callback;
+            this._foundFileToMigrateCallback = foundFileToMigrateCallback;
         }
 
         #endregion
 
-        public async Task CrawlContextRootWebAndSubwebs()
+        public async Task CrawlContextRootWebAndSubwebs(SiteListFilterConfig siteFolderConfig)
         {
             var rootWeb = _spClient.Web;
             await EnsureContextWebIsLoaded();
             _spClient.Load(rootWeb.Webs);
             await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
-            await ProcessWeb(rootWeb);
+
+            await ProcessWeb(rootWeb, siteFolderConfig);
 
             foreach (var subSweb in rootWeb.Webs)
             {
-                await ProcessWeb(subSweb);
+                await ProcessWeb(subSweb, siteFolderConfig);
             }
         }
 
-        private async Task ProcessWeb(Web web)
+        private async Task ProcessWeb(Web web, SiteListFilterConfig siteFolderConfig)
         {
             Console.WriteLine($"Reading web '{web.ServerRelativeUrl}'...");
             _spClient.Load(web.Lists);
@@ -55,22 +56,30 @@ namespace SPO.ColdStorage.Migration.Engine
                 await _spClient.ExecuteQueryAsyncWithThrottleRetries();
 
                 // Do not search through system or hidden lists
-                if (!list.Hidden && !list.IsSystemList && !list.NoCrawl)
+                if (!list.Hidden && !list.IsSystemList)
                 {
-                    _tracer.TrackTrace($"Crawling '{list.Title}'...");
-                    await CrawlList(list);
+                    if (siteFolderConfig.IncludeListInMigration(list.Title))
+                    {
+                        var listCrawlConfig = siteFolderConfig.GetListFolderConfig(list.Title);
+                        _tracer.TrackTrace($"Crawling '{list.Title}'...");
+                        await CrawlList(list, listCrawlConfig);
+                    }
+                    else
+                    {
+                        _tracer.TrackTrace($"Ignoring '{list.Title}' - not configured to migrate.");
+                    }
                 }
                 else
                 {
-                    if (!list.NoCrawl)
-                    {
-                        _tracer.TrackTrace($"Ignoring '{list.Title}' - NoCrawl set on list.");
-                    }
+                    _tracer.TrackTrace($"Ignoring system/hidden list '{list.Title}'.");
                 }
             }
         }
-
         public async Task<List<SharePointFileInfo>> CrawlList(List list)
+        {
+            return await CrawlList(list, new ListFolderConfig());
+        }
+        public async Task<List<SharePointFileInfo>> CrawlList(List list, ListFolderConfig listFolderConfig)
         {
             await EnsureContextWebIsLoaded();
             _spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
@@ -137,11 +146,11 @@ namespace SPO.ColdStorage.Migration.Engine
                     SharePointFileInfo? foundFileInfo = null;
                     if (list.BaseType == BaseType.GenericList)
                     {
-                        results.AddRange(await ProcessListItemAttachments(item, list.RootFolder.ServerRelativeUrl));
+                        results.AddRange(await ProcessListItemAttachments(item, list.RootFolder.ServerRelativeUrl, listFolderConfig));
                     }
                     else if (list.BaseType == BaseType.DocumentLibrary)
                     {
-                        foundFileInfo = await ProcessDocLibItem(item, list.RootFolder.ServerRelativeUrl);
+                        foundFileInfo = await ProcessDocLibItem(item, list.RootFolder.ServerRelativeUrl, listFolderConfig);
                     }
                     if (foundFileInfo != null)
                         results.Add(foundFileInfo!);
@@ -153,9 +162,9 @@ namespace SPO.ColdStorage.Migration.Engine
         }
 
         /// <summary>
-        /// Process document library item.
+        /// Process a single document library item.
         /// </summary>
-        private async Task<SharePointFileInfo?> ProcessDocLibItem(ListItem docListItem, string listServerRelativeUrl)
+        private async Task<SharePointFileInfo?> ProcessDocLibItem(ListItem docListItem, string listServerRelativeUrl, ListFolderConfig listFolderConfig)
         {
             switch (docListItem.FileSystemObjectType)
             {
@@ -164,11 +173,19 @@ namespace SPO.ColdStorage.Migration.Engine
                     if (docListItem.File.Exists)
                     {
                         var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl, listServerRelativeUrl);
-                        if (_callback != null)
+                        if (listFolderConfig.IncludeFolder(foundFileInfo))
                         {
-                            await this._callback(foundFileInfo);
+                            if (_foundFileToMigrateCallback != null)
+                            {
+                                await this._foundFileToMigrateCallback(foundFileInfo);
+                            }
                         }
-
+                        else
+                        {
+#if DEBUG
+                            Console.WriteLine($"DEBUG: Ignoring doc {foundFileInfo.ServerRelativeFilePath}");
+#endif
+                        }
                         return foundFileInfo;
                     }
                     break;
@@ -178,20 +195,29 @@ namespace SPO.ColdStorage.Migration.Engine
         }
 
         /// <summary>
-        /// Process custom list item attachments
+        /// Process custom list item with possibly multiple attachments
         /// </summary>
-        private async Task<List<SharePointFileInfo>> ProcessListItemAttachments(ListItem item, string listServerRelativeUrl)
+        private async Task<List<SharePointFileInfo>> ProcessListItemAttachments(ListItem item, string listServerRelativeUrl, ListFolderConfig listFolderConfig)
         {
             var attachmentsResults = new List<SharePointFileInfo>();
 
             foreach (var attachment in item.AttachmentFiles)
             {
                 var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl, listServerRelativeUrl);
-                if (_callback != null)
+                if (listFolderConfig.IncludeFolder(foundFileInfo))
                 {
-                    await this._callback(foundFileInfo);
+                    if (_foundFileToMigrateCallback != null)
+                    {
+                        await this._foundFileToMigrateCallback(foundFileInfo);
+                    }
+                    attachmentsResults.Add(foundFileInfo);
                 }
-                attachmentsResults.Add(foundFileInfo);
+                else
+                {
+#if DEBUG
+                    Console.WriteLine($"DEBUG: Ignoring attachment {foundFileInfo.ServerRelativeFilePath}");
+#endif
+                }
             }
 
             return attachmentsResults;
@@ -229,7 +255,8 @@ namespace SPO.ColdStorage.Migration.Engine
                 dir = item.FieldValues["FileDirRef"].ToString();
                 if (dir!.StartsWith(listServerRelativeUrl))
                 {
-                    dir = dir.Substring(listServerRelativeUrl.Length);
+                    // Truncate list URL from dir value of item
+                     dir = dir.Substring(listServerRelativeUrl.Length).TrimStart("/".ToCharArray());
                 }
             }
             else
