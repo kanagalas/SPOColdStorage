@@ -21,6 +21,10 @@ namespace SPO.ColdStorage.LoadGenerator
             const int MAX_FILES_PER_THREAD = 500;
 
             var threadsNeeded = fileCount / MAX_FILES_PER_THREAD;
+            if (threadsNeeded == 0)
+            {
+                threadsNeeded = 1;
+            }
             var tasks = new List<Task>();
 
             for (int threadIndex = 0; threadIndex < threadsNeeded; threadIndex++)
@@ -141,7 +145,14 @@ namespace SPO.ColdStorage.LoadGenerator
 
             ctx.Load(att);
 
-            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+            try
+            {
+                await ctx.ExecuteQueryAsyncWithThrottleRetries();
+            }
+            catch (ServerException ex)
+            {
+                Console.WriteLine($"Got unexpected error saving against list '{list.Title}': {ex.Message}");
+            }
         }
     }
 }
