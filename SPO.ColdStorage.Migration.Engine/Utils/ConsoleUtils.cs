@@ -5,17 +5,21 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
 {
     public class ConsoleUtils
     {
-        public static Config GetConfigurationBuilder()
+        public static Config GetConfigurationWithDefaultBuilder()
         {
+            var builder = GetConfigurationBuilder();
 
-            var builder = new ConfigurationBuilder()
+            var configCollection = builder.Build();
+            return new Config(configCollection);
+        }
+
+        public static IConfigurationBuilder GetConfigurationBuilder()
+        {
+            return new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddUserSecrets(System.Reflection.Assembly.GetEntryAssembly(), true)
                 .AddEnvironmentVariables()
                 .AddJsonFile("appsettings.json", true);
-
-            var configCollection = builder.Build();
-            return new Config(configCollection);
         }
     }
 }
