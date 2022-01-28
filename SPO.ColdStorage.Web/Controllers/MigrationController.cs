@@ -4,6 +4,7 @@ using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
 using SPO.ColdStorage.Migration.Engine;
+using SPO.ColdStorage.Migration.Engine.Model;
 using SPO.ColdStorage.Web.Models;
 
 namespace SPO.ColdStorage.Web.Controllers
@@ -26,9 +27,14 @@ namespace SPO.ColdStorage.Web.Controllers
 
         // GET: Migration
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TargetMigrationSite>>> GetMigrations()
+        public async Task<ActionResult<IEnumerable<TargetMigrationSiteDTO>>> GetMigrations()
         {
-            return await _context.TargetSharePointSites.ToListAsync();
+            var targets = await _context.TargetSharePointSites.ToListAsync();
+            var returnList = new List<TargetMigrationSiteDTO>();
+            foreach (var target in targets)
+                returnList.Add(new TargetMigrationSiteDTO(target));
+
+            return returnList;
         }
 
         // POST: Migration
