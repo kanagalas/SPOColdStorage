@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SPO.ColdStorage.Entities;
 
@@ -11,9 +12,10 @@ using SPO.ColdStorage.Entities;
 namespace SPO.ColdStorage.Entities.Migrations
 {
     [DbContext(typeof(SPOColdStorageDbContext))]
-    partial class SPOColdStorageDbContextModelSnapshot : ModelSnapshot
+    [Migration("20220128092814_SiteFilterConfig")]
+    partial class SiteFilterConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
