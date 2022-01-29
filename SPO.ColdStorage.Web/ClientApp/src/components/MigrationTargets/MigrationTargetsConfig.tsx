@@ -4,7 +4,7 @@ import { NewTargetForm } from './NewTargetForm'
 import { MigrationTarget } from './MigrationTarget'
 import Button from '@mui/material/Button';
 
-import { SiteBrowserDiag } from './SiteBrowserDiag';
+import { SiteBrowserDiag } from './SiteBrowser/SiteBrowserDiag';
 import { TargetMigrationSite } from './TargetSitesInterfaces';
 
 export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {

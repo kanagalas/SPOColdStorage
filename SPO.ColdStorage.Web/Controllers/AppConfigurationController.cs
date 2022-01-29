@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
-using SPO.ColdStorage.Entities.DBEntities;
 using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Model;
 using SPO.ColdStorage.Web.Models;
@@ -31,7 +30,7 @@ namespace SPO.ColdStorage.Web.Controllers
         }
 
 
-        // Get storage configuration to read blobs
+        // Generate storage configuration + key to read blobs
         // GET: AppConfiguration/GetStorageInfo
         [HttpGet("[action]")]
         public ActionResult<StorageInfo> GetStorageInfo()
@@ -50,6 +49,16 @@ namespace SPO.ColdStorage.Web.Controllers
                 SharedAccessToken = sasUri.Query,
                 ContainerName = _config.BlobContainerName
             };
+        }
+
+        // GET: AppConfiguration/GetSharePointToken
+        [HttpGet("[action]")]
+        public async Task<string> GetSharePointToken()
+        {
+            var app = await AuthUtils.GetNewClientApp(_config);
+
+            var result = await app.AuthForSharePointOnline(_config.BaseServerAddress);
+            return result.AccessToken;
         }
 
         // GET: AppConfiguration/GetGetMigrationTargets

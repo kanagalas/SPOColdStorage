@@ -1,10 +1,6 @@
 import React from 'react';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import ListItemText from '@mui/material/ListItemText';
-import ListItem from '@mui/material/ListItem';
-import List from '@mui/material/List';
-import Divider from '@mui/material/Divider';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
@@ -14,7 +10,8 @@ import Slide from '@mui/material/Slide';
 import { TransitionProps } from '@mui/material/transitions';
 
 
-import { TargetMigrationSite } from './TargetSitesInterfaces';
+import { TargetMigrationSite } from '../TargetSitesInterfaces';
+import { SiteList } from './SiteList';
 
 interface Props {
     token: string,
@@ -29,6 +26,35 @@ export const SiteBrowserDiag: React.FC<Props> = (props) => {
     const handleClose = () => {
         props.onClose();
     };
+    const [spoToken, setSpoToken] = React.useState<string | null>(null);
+
+    const getSpoToken = React.useCallback(async (token : string) => {
+        return await fetch('AppConfiguration/GetSharePointToken', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+            }
+        }
+        )
+            .then(async response => {
+                const data: string = await response.text();
+                setSpoToken(data);
+                return Promise.resolve(data);
+            })
+            .catch(err => {
+
+                alert('Loading SPO token failed');
+
+                return Promise.reject();
+            });
+    }, []);
+
+
+    React.useEffect(() => {
+        if (props.token)
+            getSpoToken(props.token);
+    }, []);
 
     const Transition = React.forwardRef(function Transition(
         props: TransitionProps & {
@@ -45,8 +71,7 @@ export const SiteBrowserDiag: React.FC<Props> = (props) => {
                 fullScreen
                 open={props.open}
                 onClose={handleClose}
-                TransitionComponent={Transition}
-            >
+                TransitionComponent={Transition}>
 
                 <AppBar sx={{ position: 'relative' }}>
                     <Toolbar>
@@ -59,26 +84,21 @@ export const SiteBrowserDiag: React.FC<Props> = (props) => {
                             <CloseIcon />
                         </IconButton>
                         <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-                            Sound
+                            Select Contents to Migrate
                         </Typography>
                         <Button autoFocus color="inherit" onClick={handleClose}>
                             save
                         </Button>
                     </Toolbar>
                 </AppBar>
-                <List>
-                    <ListItem button>
-                        <ListItemText primary="Phone ringtone" secondary="Titania" />
-                    </ListItem>
-                    <Divider />
-                    <ListItem button>
-                        <ListItemText
-                            primary="Default notification ringtone"
-                            secondary="Tethys"
-                        />
-                    </ListItem>
-                </List>
-
+                {spoToken === null ?
+                    (
+                        <div>Loading</div>
+                    ) :
+                    (
+                        <SiteList spoToken={spoToken!} targetSite={props.targetSite} />
+                    )
+                }
             </Dialog>
         </div>
     );
