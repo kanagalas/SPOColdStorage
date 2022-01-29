@@ -13,11 +13,8 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
   const [targetMigrationSites, setTargetMigrationSites] = React.useState<Array<TargetMigrationSite>>([]);
   const [selectedSite, setSelectedSite] = React.useState<TargetMigrationSite | null>(null);
 
-  const { forwardRef, useRef, useImperativeHandle } = React;
-  const childRef = useRef();
-
   const getMigrationTargets = React.useCallback(async (token) => {
-    return await fetch('migration', {
+    return await fetch('AppConfiguration/GetMigrationTargets', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

@@ -1,12 +1,11 @@
 ﻿using SPO.ColdStorage.Entities.DBEntities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace SPO.ColdStorage.Migration.Engine.Model
 {
+    /// <summary>
+    /// TargetMigrationSite + model from Json
+    /// </summary>
     public class TargetMigrationSiteDTO : TargetMigrationSite
     {
         private SiteListFilterConfig? _siteListFilterConfig;
@@ -19,6 +18,12 @@ namespace SPO.ColdStorage.Migration.Engine.Model
             this.FilterConfigJson = target.FilterConfigJson;
         }
 
+        [JsonIgnore]
+        public bool IsValid => !Uri.IsWellFormedUriString(RootURL, UriKind.Absolute);
+
+        /// <summary>
+        /// Model version of Json
+        /// </summary>
         public SiteListFilterConfig SiteFilterConfig 
         { 
             get 
@@ -43,7 +48,11 @@ namespace SPO.ColdStorage.Migration.Engine.Model
                     }
                 }
                 return _siteListFilterConfig; 
-            } 
+            }
+            set
+            {
+                this.FilterConfigJson = System.Text.Json.JsonSerializer.Serialize(this);
+            }
         }
     }
 }

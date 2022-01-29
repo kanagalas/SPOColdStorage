@@ -21,7 +21,7 @@ export const FileBrowser : React.FC<{token:string}> = (props) => {
 
   const getStorageConfig = React.useCallback(async (token) => 
   {
-    return await fetch('migrationrecord/GetStorageInfo', {
+    return await fetch('AppConfiguration/GetStorageInfo', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

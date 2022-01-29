@@ -1,11 +1,9 @@
-﻿using Azure.Storage.Blobs;
-using Azure.Storage.Sas;
+﻿
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
-using SPO.ColdStorage.Web.Models;
 
 namespace SPO.ColdStorage.Web.Controllers
 {
@@ -45,25 +43,5 @@ namespace SPO.ColdStorage.Web.Controllers
             }
         }
 
-        // Get storage configuration to read blobs
-        // GET: MigrationRecord/GetStorageInfo
-        [HttpGet("[action]")]
-        public ActionResult<StorageInfo> GetStorageInfo()
-        {
-            var client = new BlobServiceClient(_config.ConnectionStrings.Storage);
-
-            // Generate a new shared-access-signature
-            var sasUri = client.GenerateAccountSasUri(AccountSasPermissions.List | AccountSasPermissions.Read, 
-                DateTime.Now.AddDays(1), 
-                AccountSasResourceTypes.Container | AccountSasResourceTypes.Object);
-
-            // Return for react app
-            return new StorageInfo
-            {
-                AccountURI = client.Uri.ToString(),
-                SharedAccessToken = sasUri.Query,
-                ContainerName = _config.BlobContainerName
-            };
-        }
     }
 }
