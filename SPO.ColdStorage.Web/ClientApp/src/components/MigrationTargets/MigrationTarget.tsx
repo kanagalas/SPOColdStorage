@@ -5,7 +5,8 @@ import Button from '@mui/material/Button';
 interface Props {
     token: string,
     targetSite: TargetMigrationSite,
-    removeSiteUrl: Function
+    removeSiteUrl: Function,
+    configureListsAndFolders: Function
 }
 
 export const MigrationTarget: React.FC<Props> = (props) => {
@@ -28,7 +29,7 @@ export const MigrationTarget: React.FC<Props> = (props) => {
                         </div>
                     )
                 }
-                <li><Button onClick={() => props.removeSiteUrl(props.targetSite)}>Add folder to whitelist</Button></li>
+                <li><Button onClick={() => props.configureListsAndFolders(props.targetSite)}>Add folder to whitelist</Button></li>
             </ul>
         </div>
     );
