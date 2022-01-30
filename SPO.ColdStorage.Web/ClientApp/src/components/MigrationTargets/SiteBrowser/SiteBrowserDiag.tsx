@@ -79,15 +79,14 @@ export const SiteBrowserDiag: React.FC<Props> = (props) => {
                             edge="start"
                             color="inherit"
                             onClick={handleClose}
-                            aria-label="close"
-                        >
+                            aria-label="close">
                             <CloseIcon />
                         </IconButton>
                         <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-                            Select Contents to Migrate
+                            Select Contents to Migrate: {props.targetSite.rootURL}
                         </Typography>
                         <Button autoFocus color="inherit" onClick={handleClose}>
-                            save
+                            Save
                         </Button>
                     </Toolbar>
                 </AppBar>
