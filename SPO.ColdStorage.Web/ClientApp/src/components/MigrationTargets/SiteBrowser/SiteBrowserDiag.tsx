@@ -12,6 +12,7 @@ import { TransitionProps } from '@mui/material/transitions';
 
 import { TargetMigrationSite } from '../TargetSitesInterfaces';
 import { SiteList } from './SiteList';
+import { SPAuthInfo } from './SPDefs';
 
 interface Props {
     token: string,
@@ -20,13 +21,12 @@ interface Props {
     onClose: Function
 }
 
-
 export const SiteBrowserDiag: React.FC<Props> = (props) => {
 
     const handleClose = () => {
         props.onClose();
     };
-    const [spoToken, setSpoToken] = React.useState<string | null>(null);
+    const [spoAuthInfo, setSpoAuthInfo] = React.useState<SPAuthInfo | null>(null);
 
     const getSpoToken = React.useCallback(async (token : string) => {
         return await fetch('AppConfiguration/GetSharePointToken', {
@@ -35,12 +35,26 @@ export const SiteBrowserDiag: React.FC<Props> = (props) => {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + token,
             }
-        }
-        )
+        })
             .then(async response => {
-                const data: string = await response.text();
-                setSpoToken(data);
-                return Promise.resolve(data);
+                const spoAuthToken: string = await response.text();
+
+                const url = `${props.targetSite.rootURL}/_api/contextinfo`;
+                await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: "application/json;odata=verbose",
+                        'Authorization': 'Bearer ' + spoAuthToken,
+                    }
+                })
+                    .then(async spoResponse => {
+                        const digestJson: any = await spoResponse.json();
+                        
+                        setSpoAuthInfo({bearer: spoAuthToken, digest: digestJson.d.GetContextWebInformation.FormDigestValue});
+                        return Promise.resolve(spoAuthInfo);
+                    })
+
             })
             .catch(err => {
 
@@ -90,12 +104,12 @@ export const SiteBrowserDiag: React.FC<Props> = (props) => {
                         </Button>
                     </Toolbar>
                 </AppBar>
-                {spoToken === null ?
+                {spoAuthInfo === null ?
                     (
                         <div>Loading</div>
                     ) :
                     (
-                        <SiteList spoToken={spoToken!} targetSite={props.targetSite} />
+                        <SiteList spoAuthInfo={spoAuthInfo} targetSite={props.targetSite} />
                     )
                 }
             </Dialog>

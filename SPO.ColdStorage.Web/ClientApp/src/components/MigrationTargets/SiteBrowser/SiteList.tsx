@@ -1,25 +1,13 @@
 import React from 'react';
-import ListItemText from '@mui/material/ListItemText';
-import ListItem from '@mui/material/ListItem';
-import List from '@mui/material/List';
-import Divider from '@mui/material/Divider';
 import { TargetMigrationSite } from '../TargetSitesInterfaces';
+import { TreeView } from '@mui/lab';
+import { SiteNode } from "./SiteNode";
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { SPAuthInfo, SPList, SPListResponse } from './SPDefs';
 
-interface SPListResponse {
-    d: SPListResponseData
-}
-interface SPListResponseData {
-    results: SPList[]
-}
-interface SPList {
-    Title: string,
-    Description: string,
-    Id: string,
-    Hidden: boolean,
-    NoCrawl: boolean
-}
 interface Props {
-    spoToken: string,
+    spoAuthInfo: SPAuthInfo,
     targetSite: TargetMigrationSite
 }
 
@@ -32,7 +20,7 @@ export const SiteList: React.FC<Props> = (props) => {
             headers: {
                 'Content-Type': 'application/json',
                 Accept: "application/json;odata=verbose",
-                'Authorization': 'Bearer ' + props.spoToken,
+                'Authorization': 'Bearer ' + props.spoAuthInfo.bearer,
             }
         }
         )
@@ -56,6 +44,18 @@ export const SiteList: React.FC<Props> = (props) => {
         getSiteLists();
     }, []);
 
+    const renderTree = (nodes: SPList[]) => (
+        nodes.map((node: SPList) => 
+        (
+            <SiteNode list={node} spoAuthInfo={props.spoAuthInfo} targetSite={props.targetSite} />
+        ))
+    );
+
+    const onNodeToggle = (e: any, nodeId: string[]) => 
+    {
+
+    }
+
     return (
         <div>
             {lists === null ?
@@ -64,19 +64,12 @@ export const SiteList: React.FC<Props> = (props) => {
                 )
                 :
                 (
-                    <List>
-                        {lists.map((list: SPList) =>
-                        (
-                            <div>
-                                <ListItem button>
-                                    <ListItemText primary={list.Title} secondary={list.Description} />
-                                </ListItem>
-
-                                <Divider />
-                            </div>
-                        ))
-                        }
-                    </List>
+                    <TreeView onNodeToggle={onNodeToggle}
+                        defaultCollapseIcon={<ExpandMoreIcon />}
+                        defaultExpandIcon={<ChevronRightIcon />}
+                    >
+                        {renderTree(lists)}
+                    </TreeView>
                 )
             }
         </div>
