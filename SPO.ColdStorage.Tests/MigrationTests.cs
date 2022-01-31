@@ -69,7 +69,7 @@ namespace SPO.ColdStorage.Tests
             var allResults = await crawler.CrawlList(targetList);
 
             // Check it's the right file
-            var discoveredFile = allResults.Where(r => r.FileRelativePath.Contains(fileTitle)).FirstOrDefault();
+            var discoveredFile = allResults.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
             Assert.IsNotNull(discoveredFile);
 
             // Migrate the file to az blob
@@ -79,7 +79,7 @@ namespace SPO.ColdStorage.Tests
             var tempLocalFile = SharePointFileDownloader.GetTempFileNameAndCreateDir(discoveredFile);
             var blobServiceClient = new BlobServiceClient(_config.ConnectionStrings.Storage);
             var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
-            var blobClient = containerClient.GetBlobClient(discoveredFile.FileRelativePath);
+            var blobClient = containerClient.GetBlobClient(discoveredFile.ServerRelativeFilePath);
 
             await blobClient.DownloadToAsync(tempLocalFile);
             
@@ -145,7 +145,7 @@ namespace SPO.ColdStorage.Tests
         {
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
             var allResults = await crawler.CrawlList(targetList);
-            var discoveredFile = allResults.Where(r => r.FileRelativePath.Contains(fileTitle)).FirstOrDefault();
+            var discoveredFile = allResults.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
             return discoveredFile;
         }
 
@@ -156,7 +156,7 @@ namespace SPO.ColdStorage.Tests
             { 
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite, 
                 WebUrl = _config!.DevConfig.DefaultSharePointSite,
-                FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
+                ServerRelativeFilePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx"
             };
             var app = await AuthUtils.GetNewClientApp(_config);
 
@@ -165,20 +165,6 @@ namespace SPO.ColdStorage.Tests
         }
 
 
-        [TestMethod]
-        public async Task LargeSharePointFileDownloaderTests()
-        {
-            var testMsg = new SharePointFileInfo
-            {
-                SiteUrl = _config!.DevConfig.DefaultSharePointSite,
-                WebUrl = _config!.DevConfig.DefaultSharePointSite,
-                FileRelativePath = "/sites/MigrationHost/BigFiles/BigFile"
-            };
-            var app = await AuthUtils.GetNewClientApp(_config);
-
-            var m = new SharePointFileDownloader(app, _config!, _tracer);
-            await m.DownloadFileToTempDir(testMsg);
-        }
 
         [TestMethod]
         public async Task BlobStorageFileUploadTests()
@@ -186,7 +172,7 @@ namespace SPO.ColdStorage.Tests
             var testMsg = new SharePointFileInfo
             {
                 SiteUrl = _config!.DevConfig.DefaultSharePointSite,
-                FileRelativePath = $"/sites/MigrationHost/Unit tests/textfile{DateTime.Now.Ticks}.txt"
+                ServerRelativeFilePath = $"/sites/MigrationHost/Unit tests/textfile{DateTime.Now.Ticks}.txt"
             };
 
             // Write a fake file 

@@ -26,10 +26,10 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 this._containerClient = _blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
             }
 
-            _tracer.TrackTrace($"Uploading '{msg.FileRelativePath}' to blob storage...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
+            _tracer.TrackTrace($"Uploading '{msg.ServerRelativeFilePath}' to blob storage...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
             using (var fs = File.OpenRead(localTempFileName))
             {
-                var fileRef = _containerClient.GetBlobClient(msg.FileRelativePath);
+                var fileRef = _containerClient.GetBlobClient(msg.ServerRelativeFilePath);
                 var fileExists = await fileRef.ExistsAsync();
                 if (fileExists)
                 {
@@ -49,11 +49,11 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                     if (!match)
                         await fileRef.UploadAsync(fs, true);
                     else
-                        _tracer.TrackTrace($"Skipping '{msg.FileRelativePath}' as destination hash is identical to local file.", 
+                        _tracer.TrackTrace($"Skipping '{msg.ServerRelativeFilePath}' as destination hash is identical to local file.", 
                             Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
                 }
                 else
-                    await _containerClient.UploadBlobAsync(msg.FileRelativePath, fs);
+                    await _containerClient.UploadBlobAsync(msg.ServerRelativeFilePath, fs);
             }
         }
     }

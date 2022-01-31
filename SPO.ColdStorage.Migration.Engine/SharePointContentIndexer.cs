@@ -14,6 +14,8 @@ namespace SPO.ColdStorage.Migration.Engine
     /// </summary>
     public class SharePointContentIndexer : BaseComponent
     {
+        #region Constructors & Privates
+
         private BlobServiceClient _blobServiceClient;
         private BlobContainerClient? _containerClient;
         private SharePointFileMigrator _sharePointFileMigrator;
@@ -29,6 +31,8 @@ namespace SPO.ColdStorage.Migration.Engine
             _sharePointFileMigrator = new SharePointFileMigrator(config, _tracer);
         }
 
+        #endregion
+
         public async Task StartMigrateAllSites()
         {
             // Create the container and return a container client object
@@ -42,19 +46,36 @@ namespace SPO.ColdStorage.Migration.Engine
                 var sitesToMigrate = await db.TargetSharePointSites.ToListAsync();
                 foreach (var s in sitesToMigrate)
                 {
-                    await StartSiteMigration(s.RootURL);
+                    SiteListFilterConfig? siteFilterConfig = null;
+                    if (!string.IsNullOrEmpty(s.FilterConfigJson))
+                    {
+                        try
+                        {
+                            siteFilterConfig = System.Text.Json.JsonSerializer.Deserialize<SiteListFilterConfig>(s.FilterConfigJson);
+                        }
+                        catch (Exception ex)
+                        {
+                            _tracer.TrackTrace($"Couldn't deserialise filter JSon for site '{s.RootURL}': {ex.Message}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                        }
+                    }
+                    
+                    // Instantiate "allow all" config if none can be found in the DB
+                    if (siteFilterConfig == null)
+                        siteFilterConfig = new SiteListFilterConfig();
+
+                    await StartSiteMigration(s.RootURL, siteFilterConfig);
                 }
             }
         }
 
-        async Task StartSiteMigration(string siteUrl)
+        async Task StartSiteMigration(string siteUrl, SiteListFilterConfig siteFolderConfig)
         {
             var ctx = await AuthUtils.GetClientContext(_config, siteUrl);
 
-            _tracer.TrackTrace($"Scanning site '{siteUrl}'...");
+            _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
             var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound);
-            await crawler.CrawlContextWeb();
+            await crawler.CrawlContextRootWebAndSubwebs(siteFolderConfig);
         }
 
         /// <summary>

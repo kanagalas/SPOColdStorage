@@ -1,19 +1,20 @@
 import '../NavMenu.css';
 import React from 'react';
 import { NewTargetForm } from './NewTargetForm'
+import { MigrationTarget } from './MigrationTarget'
 import Button from '@mui/material/Button';
 
-interface TargetMigrationSite {
-  rootURL: string;
-}
+import { SiteBrowserDiag } from './SiteBrowser/SiteBrowserDiag';
+import { TargetMigrationSite } from './TargetSitesInterfaces';
 
 export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
 
   const [loading, setLoading] = React.useState<boolean>(false);
-  const [targetMigrationSites, setTargetMigrationSites] = React.useState<Array<string>>([]);
+  const [targetMigrationSites, setTargetMigrationSites] = React.useState<Array<TargetMigrationSite>>([]);
+  const [selectedSite, setSelectedSite] = React.useState<TargetMigrationSite | null>(null);
 
   const getMigrationTargets = React.useCallback(async (token) => {
-    return await fetch('migration', {
+    return await fetch('AppConfiguration/GetMigrationTargets', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -38,35 +39,41 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
 
     if (props.token) {
 
-      // Load storage config first
+      // Load sites config from API
       getMigrationTargets(props.token)
         .then((allTargetSites: TargetMigrationSite[]) => {
 
-          let siteUrls: string[] = [];
-          allTargetSites.forEach(site => {
-            siteUrls.push(site.rootURL);
-          });
-
-          setTargetMigrationSites(siteUrls);
+          setTargetMigrationSites(allTargetSites);
 
         });
     }
   }, [props, getMigrationTargets]);
 
   const addNewSiteUrl = (newSiteUrl: string) => {
-    if (targetMigrationSites?.includes(newSiteUrl)) {
-      alert('Already have that site');
+    targetMigrationSites.forEach(s => {
+      if (s.rootURL === newSiteUrl) {
+        alert('Already have that site');
+        return;
+      }
+    });
+
+    const newSiteDef: TargetMigrationSite =
+    {
+      rootURL: newSiteUrl
     }
-    else
-      setTargetMigrationSites(s => [...s, newSiteUrl]);
+    setTargetMigrationSites(s => [...s, newSiteDef]);
   };
 
-  const removeSiteUrl = (siteUrl: string) => {
-    const idx = targetMigrationSites.indexOf(siteUrl);
+  const removeSiteUrl = (selectedSite: TargetMigrationSite) => {
+    const idx = targetMigrationSites.indexOf(selectedSite);
     if (idx > -1) {
       targetMigrationSites.splice(idx);
       setTargetMigrationSites(s => s.filter((value, i) => i !== idx));
     }
+  };
+
+  const configureListsAndFolders = (selectedSite: TargetMigrationSite) => {
+    setSelectedSite(selectedSite);
   };
 
   const saveAll = () => {
@@ -86,19 +93,22 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
       if (response.ok) {
         alert('Success');
       }
-      else
-      {
+      else {
         alert(await response.text());
       }
       setLoading(false);
 
-      })
+    })
       .catch(err => {
 
         // alert('Loading storage data failed');
         setLoading(false);
       });
   };
+
+  const closeDiag = () => {
+    setSelectedSite(null);
+  }
 
   return (
     <div>
@@ -113,13 +123,11 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
               <div>No sites to migrate</div>
               :
               (
-                <div>
-                  {targetMigrationSites?.map((targetMigrationSite: string) => {
-                    return <div>
-                      <span>{targetMigrationSite}</span>
-                      <span><Button onClick={() => removeSiteUrl(targetMigrationSite)}>Remove</Button></span>
-                    </div>
-                  })}
+                <div id='migrationTargets'>
+                  {targetMigrationSites.map((targetMigrationSite: TargetMigrationSite) => (
+                    <MigrationTarget token={props.token} targetSite={targetMigrationSite}
+                      removeSiteUrl={removeSiteUrl} configureListsAndFolders={configureListsAndFolders} />
+                  ))}
 
                 </div>
               )
@@ -127,12 +135,15 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
             <NewTargetForm addUrlCallback={(newSite: string) => addNewSiteUrl(newSite)} />
 
             {targetMigrationSites.length > 0 &&
-            
               <Button variant="contained" onClick={() => saveAll()}>Save Changes</Button>
             }
           </div>
         )
         : <div>Loading...</div>
+      }
+
+      {selectedSite &&
+        <SiteBrowserDiag token={props.token} targetSite={selectedSite} open={selectedSite !== null} onClose={closeDiag} />
       }
     </div>
   );

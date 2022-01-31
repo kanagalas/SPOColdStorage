@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPO.ColdStorage.Migration.Engine.Model;
 using System;
+using System.Collections.Generic;
 
 namespace SPO.ColdStorage.Tests
 {
@@ -13,7 +14,7 @@ namespace SPO.ColdStorage.Tests
             // Normal SP path
             var searchObj1 = new FileSearchModel(new SharePointFileInfo
             { 
-                FileRelativePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx",
+                ServerRelativeFilePath = "/sites/MigrationHost/Shared%20Documents/Blank%20Office%20PPT.pptx",
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost"
             });
 
@@ -23,7 +24,7 @@ namespace SPO.ColdStorage.Tests
             // Normalish SP path
             var searchObj2 = new FileSearchModel(new SharePointFileInfo
             {
-                FileRelativePath = "/sites/Blank%20Office%20PPT.pptx",
+                ServerRelativeFilePath = "/sites/Blank%20Office%20PPT.pptx",
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost"
             });
 
@@ -34,7 +35,7 @@ namespace SPO.ColdStorage.Tests
             // Invalid SP path
             var searchObj3 = new FileSearchModel(new SharePointFileInfo
             {
-                FileRelativePath = "Blank%20Office%20PPT.pptx",
+                ServerRelativeFilePath = "Blank%20Office%20PPT.pptx",
                 SiteUrl = "https://m365x352268.sharepoint.com/sites/MigrationHost"
             });
 
@@ -47,18 +48,92 @@ namespace SPO.ColdStorage.Tests
             var emptyMsg1 = new SharePointFileInfo { };
             Assert.IsFalse(emptyMsg1.IsValidInfo);
 
-            var halfEmptyMsg = new SharePointFileInfo { FileRelativePath = "/whatever" };
+            var halfEmptyMsg = new SharePointFileInfo { ServerRelativeFilePath = "/subweb1/whatever.txt" };
             Assert.IsFalse(halfEmptyMsg.IsValidInfo);
 
-
-            var legitMsg = new SharePointFileInfo
+            // File path doesn't contain web
+            var invalidMsg1 = new SharePointFileInfo
             { 
-                FileRelativePath = "/whatever", 
+                ServerRelativeFilePath = "/whatever", 
                 SiteUrl = "https://m365x352268.sharepoint.com", 
                 WebUrl = "https://m365x352268.sharepoint.com/subweb1",
                 LastModified = DateTime.Now
             };
-            Assert.IsTrue(legitMsg.IsValidInfo);
+            Assert.IsFalse(invalidMsg1.IsValidInfo);
+
+            // Trailing slashes
+            var invalidMsg2 = new SharePointFileInfo
+            {
+                ServerRelativeFilePath = "/whatever",
+                SiteUrl = "https://m365x352268.sharepoint.com/",
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1/",
+                LastModified = DateTime.Now
+            };
+            Assert.IsFalse(invalidMsg2.IsValidInfo);
+
+            // Missing start slash on file path
+            var invalidMsg3 = new SharePointFileInfo
+            {
+                ServerRelativeFilePath = "subweb1/whatever",
+                SiteUrl = "https://m365x352268.sharepoint.com",
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1",
+                LastModified = DateTime.Now
+            };
+            Assert.IsFalse(invalidMsg3.IsValidInfo);
+
+            // Valid test; no folders
+            var validMsg1 = new SharePointFileInfo
+            {
+                ServerRelativeFilePath = "/subweb1/whatever",
+                SiteUrl = "https://m365x352268.sharepoint.com",
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1",
+                LastModified = DateTime.Now
+            };
+            Assert.IsTrue(validMsg1.IsValidInfo);
+            Assert.IsTrue(validMsg1.FullSharePointUrl == "https://m365x352268.sharepoint.com/subweb1/whatever");
+
+
+            // Invalid folder - has leading/trailing slashes
+            var invalidMsg4 = new SharePointFileInfo
+            {
+                ServerRelativeFilePath = "/subweb1/whatever",
+                Subfolder = "/sub1/sub2",
+                SiteUrl = "https://m365x352268.sharepoint.com",
+                WebUrl = "https://m365x352268.sharepoint.com/subweb1",
+                LastModified = DateTime.Now
+            };
+            Assert.IsFalse(invalidMsg4.IsValidInfo);
+
+        }
+
+
+        [TestMethod]
+        public void SiteFolderConfigTests()
+        {
+            var cfg = new SiteListFilterConfig()
+            {
+                ListFilterConfig = new List<ListFolderConfig>
+                            {
+                                new ListFolderConfig{ ListTitle = "Documents" },
+                                new ListFolderConfig{ ListTitle = "Custom List", 
+                                    FolderWhiteList = new List<string>{ "Subfolder", "Subfolder/Another subfolder" } }
+                            }
+            };
+            Assert.IsTrue(cfg.IncludeListInMigration("Documents"));
+            Assert.IsFalse(cfg.IncludeListInMigration("Docs"));
+
+            Assert.IsTrue(cfg.IncludeFolderInMigration("Custom List", "Subfolder"));
+            Assert.IsTrue(cfg.IncludeFolderInMigration("Custom List", "Subfolder/Another subfolder"));
+            Assert.IsFalse(cfg.IncludeFolderInMigration("Custom List", "Some other folder"));
+
+            // Root folder
+            Assert.IsTrue(cfg.IncludeFolderInMigration("Custom List", ""));
+
+
+            // No config set
+            Assert.IsTrue(new SiteListFilterConfig().IncludeListInMigration("Documents"));
+            Assert.IsTrue(new SiteListFilterConfig().IncludeFolderInMigration("Documents2", "whatever"));
+
         }
     }
 }

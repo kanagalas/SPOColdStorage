@@ -8,5 +8,9 @@ namespace SPO.ColdStorage.Entities.DBEntities
     {
         [Column("root_url")]
         public string RootURL { get; set; } = string.Empty;
+
+        [Column("filter_config_json")]
+        public string FilterConfigJson { get; set; } = string.Empty;
+
     }
 }

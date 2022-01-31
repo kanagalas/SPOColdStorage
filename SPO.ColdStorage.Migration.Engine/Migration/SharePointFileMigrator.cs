@@ -2,7 +2,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
-using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
@@ -37,7 +36,7 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 // Send msg to migrate file
                 var sbMsg = new ServiceBusMessage(System.Text.Json.JsonSerializer.Serialize(sharePointFileInfo));
                 await _sbSender.SendMessageAsync(sbMsg);
-                _tracer.TrackTrace($"+'{sharePointFileInfo.FullUrl}'...");
+                _tracer.TrackTrace($"+'{sharePointFileInfo.FullSharePointUrl}'...");
             }
         }
 
@@ -47,12 +46,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         public async Task<bool> DoesSharePointFileNeedMigrating(SharePointFileInfo sharePointFileInfo, BlobContainerClient containerClient)
         {
             // Check if blob exists in account
-            var fileRef = containerClient.GetBlobClient(sharePointFileInfo.FileRelativePath);
+            var fileRef = containerClient.GetBlobClient(sharePointFileInfo.ServerRelativeFilePath);
             var fileExistsInAzureBlob = await fileRef.ExistsAsync();
 
             // Verify version migrated in SQL
             bool logExistsAndIsForSameVersion = false;
-            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == sharePointFileInfo.FullUrl.ToLower()).FirstOrDefaultAsync();
+            var migratedFile = await _db.Files.Where(f => f.Url.ToLower() == sharePointFileInfo.FullSharePointUrl.ToLower()).FirstOrDefaultAsync();
             if (migratedFile != null)
             {
                 var log = await _db.FileMigrationsCompleted.Where(l => l.File == migratedFile).SingleOrDefaultAsync();
@@ -153,12 +152,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             }
 
             // Find/create file
-            var migratedFileRecord = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullUrl.ToLower()).FirstOrDefaultAsync();
+            var migratedFileRecord = await _db.Files.Where(f => f.Url.ToLower() == fileMigrated.FullSharePointUrl.ToLower()).FirstOrDefaultAsync();
             if (migratedFileRecord == null)
             {
                 migratedFileRecord = new Entities.DBEntities.File
                 {
-                    Url = fileMigrated.FullUrl.ToLower(),
+                    Url = fileMigrated.FullSharePointUrl.ToLower(),
                     Web = fileWeb
                 };
                 _db.Files.Append(migratedFileRecord);
