@@ -10,12 +10,20 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
     /// </summary>
     public class SharePointFileDownloader : BaseComponent
     {
+        const int MAX_RETRIES = 5;
         private readonly IConfidentialClientApplication _app;
         private readonly HttpClient _client;
         public SharePointFileDownloader(IConfidentialClientApplication app, Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             _app = app;
             _client = new HttpClient();
+
+
+            var productValue = new ProductInfoHeaderValue("SPOColdStorageMigration", "1.0");
+            var commentValue = new ProductInfoHeaderValue("(+https://github.com/sambetts/SPOColdStorage)");
+
+            _client.DefaultRequestHeaders.UserAgent.Add(productValue);
+            _client.DefaultRequestHeaders.UserAgent.Add(commentValue);
         }
 
         /// <summary>
@@ -31,29 +39,48 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             // Write to temp file
             var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
-            _tracer.TrackTrace($"Downloading SharePoint file '{sharePointFile.FullSharePointUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
+            _tracer.TrackTrace($"Downloading '{sharePointFile.FullSharePointUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
 
             var auth = await _app.AuthForSharePointOnline(_config.BaseServerAddress);
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
             var url = $"{sharePointFile.WebUrl}/_api/web/GetFileByServerRelativeUrl('{sharePointFile.ServerRelativeFilePath}')/OpenBinaryStream";
 
             long fileSize = 0;
-
-            // Get response but don't buffer full content (which will buffer overlflow for large files)
-            using (var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
+            int retries = 0;    
+            bool retryDownload = true;
+            while (retryDownload)
             {
-                response.EnsureSuccessStatusCode();
-
-                using (var streamToReadFrom = await response.Content.ReadAsStreamAsync())
-                using (var streamToWriteTo = File.Open(tempFileName, FileMode.Create))
+                // Get response but don't buffer full content (which will buffer overlflow for large files)
+                using (var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
                 {
-                    await streamToReadFrom.CopyToAsync(streamToWriteTo);
-                    fileSize = streamToWriteTo.Length;
+                    if (!response.IsSuccessStatusCode && response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        if (retries == MAX_RETRIES)
+                        {
+                            // Allow normal HTTP exception & abort download
+                            response.EnsureSuccessStatusCode();
+                        }
+
+                        retries++;
+                        Console.WriteLine($"Got throttled downloading '{sharePointFile.FullSharePointUrl}'. Waiting {retries} seconds to try again...");
+                        await Task.Delay(1000 * retries);
+                    }
+
+                    using (var streamToReadFrom = await response.Content.ReadAsStreamAsync())
+                    using (var streamToWriteTo = File.Open(tempFileName, FileMode.Create))
+                    {
+                        await streamToReadFrom.CopyToAsync(streamToWriteTo);
+                        fileSize = streamToWriteTo.Length;
+                    }
+
+                    // Sucess
+                    retryDownload = false;
                 }
+
+                _tracer.TrackTrace($"Wrote {fileSize.ToString("N0")} bytes to '{tempFileName}'.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
             }
-
-            _tracer.TrackTrace($"Wrote {fileSize.ToString("N0")} bytes to '{tempFileName}'.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
-
+            
+            // Return file name & size
             return (tempFileName, fileSize);
         }
 
