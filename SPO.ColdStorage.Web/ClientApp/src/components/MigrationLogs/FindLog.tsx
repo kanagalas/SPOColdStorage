@@ -44,9 +44,14 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
     async populateSearchLogsFromSearch() {
         if (this.state.searchTerm.length > 0) {
             this.setState({ loading: true });
+
+            // https://docs.microsoft.com/en-us/azure/search/query-lucene-syntax
+            const searchExpression = 'search=*' + this.state.searchTerm;
+
+            // Send search request to search service
             await fetch('https://' + this.state.serviceConfiguration?.searchConfiguration.serviceName + 
                     '.search.windows.net/indexes/' + this.state.serviceConfiguration?.searchConfiguration.indexName + 
-                    '/docs?api-version=2021-04-30-Preview&search=' + this.state.searchTerm, {
+                    '/docs?api-version=2021-04-30-Preview&' + searchExpression, {
                 method: 'GET',
                 headers: {
                   'Content-Type': 'application/json',
