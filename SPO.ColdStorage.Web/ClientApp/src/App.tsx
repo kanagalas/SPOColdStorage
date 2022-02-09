@@ -3,7 +3,7 @@ import { Route } from 'react-router';
 import { Layout } from './components/Layout';
 import { FileBrowser } from './components/FileBrowser/FileBrowser';
 import { Login } from './components/Login';
-import { FindLog } from './components/MigrationLogs/FindLog';
+import { FindFile } from './components/MigrationLogs/FindFile';
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { loginRequest } from "./authConfig";
 
@@ -12,7 +12,7 @@ import { MigrationTargetsConfig } from './components/MigrationTargets/MigrationT
 
 export default function App() {
 
-    const [accessToken, setAccessToken] = useState<string>();
+    const [accessToken, setAccessToken] = useState<string | null>();
     const isAuthenticated = useIsAuthenticated();
     const { instance, accounts } = useMsal();
 
@@ -43,14 +43,20 @@ export default function App() {
 
     return (
         <Layout>
-            <AuthenticatedTemplate>
-                <Route exact path='/' render={() => <FileBrowser {... { token: accessToken! }} />} />
-                <Route path='/FindLog' render={() => <FindLog {... { token: accessToken! }} />} />
-                <Route path='/MigrationTargets' render={() => <MigrationTargetsConfig {... { token: accessToken! }} />} />
-            </AuthenticatedTemplate>
-            <UnauthenticatedTemplate>
-                <Route exact path='/' component={Login} />
-            </UnauthenticatedTemplate>
+            {accessToken ?
+                (
+                    <AuthenticatedTemplate>
+                        <Route exact path='/' render={() => <FileBrowser {... { token: accessToken! }} />} />
+                        <Route path='/FindFile' render={() => <FindFile {... { token: accessToken! }} />} />
+                        <Route path='/MigrationTargets' render={() => <MigrationTargetsConfig {... { token: accessToken! }} />} />
+                    </AuthenticatedTemplate>)
+                :
+                (
+                    <UnauthenticatedTemplate>
+                        <Route exact path='/' component={Login} />
+                    </UnauthenticatedTemplate>
+                )}
+
         </Layout>
     );
 

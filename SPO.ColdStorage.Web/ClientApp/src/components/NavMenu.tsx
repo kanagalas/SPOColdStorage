@@ -37,7 +37,7 @@ export class NavMenu extends Component<{}, { collapsed: boolean }> {
                     <NavLink tag={Link} className="text-dark" to="/">Browser</NavLink>
                   </NavItem>
                   <NavItem>
-                    <NavLink tag={Link} className="text-dark" to="/FindLog">Log</NavLink>
+                    <NavLink tag={Link} className="text-dark" to="/FindFile">Search</NavLink>
                   </NavItem>
                   <NavItem>
                     <NavLink tag={Link} className="text-dark" to="/MigrationTargets">Targets</NavLink>

@@ -15,14 +15,13 @@ interface SearchLogsState {
     searchLogs: Array<SearchResult>,
     loading: boolean,
     searchTerm: string;
-    serviceConfiguration : ServiceConfiguration | null;
+    serviceConfiguration: ServiceConfiguration | null;
 }
 interface SearchLogsProps {
     token: string;
 }
 
-export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
-    static displayName = FindLog.name;
+export class FindFile extends React.Component<SearchLogsProps, SearchLogsState> {
 
     constructor(props: SearchLogsProps) {
         super(props);
@@ -31,13 +30,16 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
 
     componentDidMount() {
 
-        getStorageConfigFromAPI(this.props.token).then((config: ServiceConfiguration) => 
-        {
-            this.setState({serviceConfiguration: config});
-        });
+        // Refresh search service config
+        if (this.props.token) {
+            getStorageConfigFromAPI(this.props.token).then((config: ServiceConfiguration) => {
+                this.setState({ serviceConfiguration: config });
 
-        if (this.state.searchTerm !== "") {
-            this.populateSearchLogsFromSearch();
+                // Search already if we have a previous search request
+                if (this.state.searchTerm !== "") {
+                    this.populateSearchLogsFromSearch();
+                }
+            });
         }
     }
 
@@ -46,19 +48,21 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
             this.setState({ loading: true });
 
             // https://docs.microsoft.com/en-us/azure/search/query-lucene-syntax
-            const searchExpression = 'search=*' + this.state.searchTerm;
+            const searchExpression = 'search=' + this.state.searchTerm + '*';
 
             // Send search request to search service
-            await fetch('https://' + this.state.serviceConfiguration?.searchConfiguration.serviceName + 
-                    '.search.windows.net/indexes/' + this.state.serviceConfiguration?.searchConfiguration.indexName + 
-                    '/docs?api-version=2021-04-30-Preview&' + searchExpression, {
+            const searchUrl = 'https://' + this.state.serviceConfiguration?.searchConfiguration.serviceName +
+                '.search.windows.net/indexes/' + this.state.serviceConfiguration?.searchConfiguration.indexName +
+                '/docs?api-version=2021-04-30-Preview&' + searchExpression;
+            await fetch(searchUrl, {
                 method: 'GET',
                 headers: {
-                  'Content-Type': 'application/json',
-                  'api-key': this.state.serviceConfiguration!.searchConfiguration!.queryKey!,
-                }})
+                    'Content-Type': 'application/json',
+                    'api-key': this.state.serviceConfiguration!.searchConfiguration!.queryKey!,
+                }
+            })
                 .then(async response => {
-                    const data : SearchResponse = await response.json();
+                    const data: SearchResponse = await response.json();
                     console.log(data);
                     this.setState({ searchLogs: data.value, loading: false });
                 })
@@ -101,8 +105,7 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
     }
 
     render() {
-        if (this.state.serviceConfiguration === null)
-        {
+        if (this.state.serviceConfiguration === null) {
             return (
                 <div>Loading search configuration...</div>
             );
