@@ -78,6 +78,7 @@ namespace SPO.ColdStorage.Migration.Engine
             var ctx = new ClientContext(siteUrl);
             ctx.ExecutingWebRequest += (s, e) =>
             {
+                e.WebRequestExecutor.WebRequest.UserAgent = "NONISV|GitHubSamBetts|SPOColdStorageMigration/1.0";
                 e.WebRequestExecutor.RequestHeaders["Authorization"] = "Bearer " + result.AccessToken;
             };
 
