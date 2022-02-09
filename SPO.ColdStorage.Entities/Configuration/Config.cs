@@ -32,6 +32,10 @@
 
         [ConfigSection("Dev")]
         public DevConfig DevConfig { get; set; } = null!;
+
+
+        [ConfigSection("Search")]
+        public SearchConfig SearchConfig { get; set; } = null!;
     }
 
     public class ConfigException : Exception

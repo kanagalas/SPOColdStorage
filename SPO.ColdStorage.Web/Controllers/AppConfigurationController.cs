@@ -30,10 +30,10 @@ namespace SPO.ColdStorage.Web.Controllers
         }
 
 
-        // Generate storage configuration + key to read blobs
-        // GET: AppConfiguration/GetStorageInfo
+        // Generate app ServiceConfiguration + storage configuration + key to read blobs
+        // GET: AppConfiguration/ServiceConfiguration
         [HttpGet("[action]")]
-        public ActionResult<StorageInfo> GetStorageInfo()
+        public ActionResult<ServiceConfiguration> GetServiceConfiguration()
         {
             var client = new BlobServiceClient(_config.ConnectionStrings.Storage);
 
@@ -43,11 +43,20 @@ namespace SPO.ColdStorage.Web.Controllers
                 AccountSasResourceTypes.Container | AccountSasResourceTypes.Object);
 
             // Return for react app
-            return new StorageInfo
+            return new ServiceConfiguration 
             {
-                AccountURI = client.Uri.ToString(),
-                SharedAccessToken = sasUri.Query,
-                ContainerName = _config.BlobContainerName
+                StorageInfo = new StorageInfo
+                {
+                    AccountURI = client.Uri.ToString(),
+                    SharedAccessToken = sasUri.Query,
+                    ContainerName = _config.BlobContainerName
+                },
+                SearchConfiguration = new SearchConfiguration 
+                {
+                    IndexName = _config.SearchConfig.IndexName,
+                    QueryKey = _config.SearchConfig.QueryKey, 
+                    ServiceName = _config.SearchConfig.ServiceName
+                }
             };
         }
 

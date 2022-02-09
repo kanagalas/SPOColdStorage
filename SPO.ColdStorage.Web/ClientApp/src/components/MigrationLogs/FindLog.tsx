@@ -1,26 +1,21 @@
 import React from 'react';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
-import moment from 'moment';
+import { getStorageConfigFromAPI, ServiceConfiguration } from '../ConfigReader'
 
-interface SharePointFile {
-    url: string;
-    web: SharePointWeb;
-    lastModified: Date;
+interface SearchResult {
+    content: string;
+    metadata_storage_name: string;
+    path: string;
 }
-interface SharePointWeb {
-    url: string;
-    lastModifiedBy : string;
+interface SearchResponse {
+    value: Array<SearchResult>;
 }
-interface MigrationLog {
-    file: SharePointFile;
-    migrated: Date;
-}
-
 interface SearchLogsState {
-    searchLogs: Array<MigrationLog>,
+    searchLogs: Array<SearchResult>,
     loading: boolean,
     searchTerm: string;
+    serviceConfiguration : ServiceConfiguration | null;
 }
 interface SearchLogsProps {
     token: string;
@@ -31,10 +26,16 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
 
     constructor(props: SearchLogsProps) {
         super(props);
-        this.state = { searchLogs: [], loading: false, searchTerm: "" };
+        this.state = { searchLogs: [], loading: false, searchTerm: "", serviceConfiguration: null };
     }
 
     componentDidMount() {
+
+        getStorageConfigFromAPI(this.props.token).then((config: ServiceConfiguration) => 
+        {
+            this.setState({serviceConfiguration: config});
+        });
+
         if (this.state.searchTerm !== "") {
             this.populateSearchLogsFromSearch();
         }
@@ -43,17 +44,18 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
     async populateSearchLogsFromSearch() {
         if (this.state.searchTerm.length > 0) {
             this.setState({ loading: true });
-            await fetch('migrationrecord?keyWord=' + this.state.searchTerm, {
+            await fetch('https://' + this.state.serviceConfiguration?.searchConfiguration.serviceName + 
+                    '.search.windows.net/indexes/' + this.state.serviceConfiguration?.searchConfiguration.indexName + 
+                    '/docs?api-version=2021-04-30-Preview&search=' + this.state.searchTerm, {
                 method: 'GET',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': 'Bearer ' + this.props.token,
+                  'api-key': this.state.serviceConfiguration!.searchConfiguration!.queryKey!,
                 }})
                 .then(async response => {
-                    const data = await response.json();
+                    const data : SearchResponse = await response.json();
                     console.log(data);
-                    this.setState({ searchLogs: data, loading: false });
-                    this.setState({ loading: false });
+                    this.setState({ searchLogs: data.value, loading: false });
                 })
                 .catch(err => {
                     alert('Loading data failed');
@@ -62,7 +64,7 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
         }
     }
 
-    static renderResultsTable(logs: Array<MigrationLog>) {
+    renderResultsTable(logs: Array<SearchResult>) {
         return (
             <div>
                 {logs.length > 0 ?
@@ -72,27 +74,21 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
                             <thead>
                                 <tr>
                                     <th>File name</th>
-                                    <th>Web</th>
-                                    <th>Last Modified</th>
-                                    <th>Migrated</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {logs.map((log: MigrationLog) =>
-                                    <tr key={log.file?.url}>
-                                        <td>{log.file?.url.split('/').pop()}</td>
-                                        <td>{log.file.web.url}</td>
-                                        <td>{moment(log.file.lastModified).format('D-MMM-YYYY HH:mm')}</td>
-                                        <td>{moment(log.migrated).format('D-MMM-YYYY HH:mm')}</td>
+                                {logs.map((log: SearchResult) =>
+                                    <tr key={log.path}>
+                                        <td>{log.path}</td>
+                                        <td><a href={log.path + this.state.serviceConfiguration?.storageInfo.sharedAccessToken}>Download</a></td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
-
-
                     :
-                    <div>No files found</div>
+                    <div>No files found in search index</div>
                 }
 
             </div>
@@ -100,9 +96,16 @@ export class FindLog extends React.Component<SearchLogsProps, SearchLogsState> {
     }
 
     render() {
+        if (this.state.serviceConfiguration === null)
+        {
+            return (
+                <div>Loading search configuration...</div>
+            );
+        }
+
         let contents = this.state.loading
             ? <p><em>Loading...</em></p>
-            : FindLog.renderResultsTable(this.state.searchLogs);
+            : this.renderResultsTable(this.state.searchLogs);
 
         return (
             <div>

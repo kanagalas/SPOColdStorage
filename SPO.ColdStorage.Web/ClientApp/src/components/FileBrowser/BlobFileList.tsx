@@ -1,7 +1,7 @@
 import { BlobItem, ContainerClient } from '@azure/storage-blob';
 import React from 'react';
 import { Component } from 'react';
-import { StorageInfo } from './FileBrowser'
+import { StorageInfo } from '../ConfigReader'
 
 interface FileListProps {
     navToFolderCallback?: Function;
