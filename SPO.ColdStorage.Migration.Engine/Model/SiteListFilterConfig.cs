@@ -78,6 +78,20 @@ namespace SPO.ColdStorage.Migration.Engine.Model
                 }
             }
         }
+
+        public string ToJson()
+        {
+            return System.Text.Json.JsonSerializer.Serialize(this);
+        }
+        public static SiteListFilterConfig FromJson(string filterConfigJson)
+        {
+            if (string.IsNullOrEmpty(filterConfigJson))
+            {
+                throw new ArgumentException($"'{nameof(filterConfigJson)}' cannot be null or empty.", nameof(filterConfigJson));
+            }
+
+            return System.Text.Json.JsonSerializer.Deserialize<SiteListFilterConfig>(filterConfigJson)!;
+        }
     }
 
     /// <summary>

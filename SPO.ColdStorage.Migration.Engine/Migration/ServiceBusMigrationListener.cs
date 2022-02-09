@@ -82,7 +82,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 lock (_lockObj)
                 {
                     _filesProcessedFromQueue++;
-                    if (REPORT_QUEUE_LENGTH_EVERY % _filesProcessedFromQueue == 0)
+                    if (_filesProcessedFromQueue % REPORT_QUEUE_LENGTH_EVERY == 0)
                     {
                         _tracer.TrackTrace($"{_filesProcessedFromQueue} files migrated...");
                     }

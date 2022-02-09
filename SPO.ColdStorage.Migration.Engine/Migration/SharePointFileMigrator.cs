@@ -75,8 +75,17 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             var tempFileNameAndSize = await downloader.DownloadFileToTempDir(fileToMigrate);
 
             // Upload local file to az blob
+            Exception? uploadError = null;
             var blobUploader = new BlobStorageUploader(_config, _tracer);
-            await blobUploader.UploadFileToAzureBlob(tempFileNameAndSize.Item1, fileToMigrate);
+            try
+            {
+                await blobUploader.UploadFileToAzureBlob(tempFileNameAndSize.Item1, fileToMigrate);
+            }
+            catch (Exception ex)
+            {
+                _tracer.TrackTrace($"Got errror {ex.Message} uploading file '{tempFileNameAndSize.Item1}' to blob storage. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                uploadError = ex;
+            }
 
             // Clean-up temp file
             try
@@ -86,6 +95,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             catch (IOException ex)
             {
                 _tracer.TrackTrace($"Got errror {ex.Message} cleaning temp file '{tempFileNameAndSize.Item1}'. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+            }
+
+            // Having cleaned up, throw our own exception so service-bus message is retried later
+            if (uploadError != null)
+            {
+                throw new Exception($"{uploadError.Message} uploading file '{tempFileNameAndSize.Item1}' to blob storage.", uploadError);
             }
 
             // Return file-size

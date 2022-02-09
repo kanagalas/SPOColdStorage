@@ -51,7 +51,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     {
                         try
                         {
-                            siteFilterConfig = System.Text.Json.JsonSerializer.Deserialize<SiteListFilterConfig>(s.FilterConfigJson);
+                            siteFilterConfig = SiteListFilterConfig.FromJson(s.FilterConfigJson);
                         }
                         catch (Exception ex)
                         {
