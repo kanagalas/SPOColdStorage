@@ -34,18 +34,20 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 if (fileExists)
                 {
                     // MD5 has the local file
-                    byte[] hash;
+                    byte[] tempFileHash;
                     using (var md5 = System.Security.Cryptography.MD5.Create())
                     {
-                        using (var stream = File.OpenRead(localTempFileName))
+                        using (var tempFileStream = File.OpenRead(localTempFileName))
                         {
-                            hash = md5.ComputeHash(stream);
+                            tempFileHash = md5.ComputeHash(tempFileStream);
                         }
                     }
 
                     // Get az blob MD5 & compare
                     var existingProps = await fileRef.GetPropertiesAsync();
-                    var match = existingProps.Value.ContentHash.SequenceEqual(hash);
+
+                    // For some reason, sometimes the hash is null
+                    var match = tempFileHash != null && existingProps.Value.ContentHash.SequenceEqual(tempFileHash);
                     if (!match)
                         await fileRef.UploadAsync(fs, true);
                     else
