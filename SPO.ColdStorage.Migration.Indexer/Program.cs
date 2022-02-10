@@ -7,6 +7,7 @@ using SPO.ColdStorage.Migration.Engine.Utils;
 Console.WriteLine("SPO Cold Storage - SharePoint Indexer");
 
 var config = ConsoleUtils.GetConfigurationWithDefaultBuilder();
+ConsoleUtils.PrintCommonStartupDetails();
 
 // Send to application insights or just the stdout?
 DebugTracer tracer;

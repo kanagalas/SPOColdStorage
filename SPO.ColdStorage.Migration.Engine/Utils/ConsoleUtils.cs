@@ -21,5 +21,11 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
                 .AddEnvironmentVariables()
                 .AddJsonFile("appsettings.json", true);
         }
+
+        public static void PrintCommonStartupDetails()
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            Console.WriteLine($"{assembly.FullName}");
+        }
     }
 }

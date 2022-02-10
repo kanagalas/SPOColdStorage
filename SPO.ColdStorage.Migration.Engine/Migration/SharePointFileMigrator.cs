@@ -18,12 +18,14 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         private ServiceBusClient _sbClient;
         private ServiceBusSender _sbSender;
         private SPOColdStorageDbContext _db;
+
         public SharePointFileMigrator(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             _sbClient = new ServiceBusClient(_config.ConnectionStrings.ServiceBus);
             _sbSender = _sbClient.CreateSender(_config.ServiceBusQueueName);
             _db = new SPOColdStorageDbContext(_config);
         }
+
 
         /// <summary>
         /// Queue file for migrator to pick-up & migrate
@@ -92,9 +94,9 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
             {
                 System.IO.File.Delete(tempFileNameAndSize.Item1);
             }
-            catch (IOException ex)
+            catch (Exception ex)
             {
-                _tracer.TrackTrace($"Got errror {ex.Message} cleaning temp file '{tempFileNameAndSize.Item1}'. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                _tracer.TrackTrace($"Got errror '{ex.Message}' cleaning temp file '{tempFileNameAndSize.Item1}'. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
             }
 
             // Having cleaned up, throw our own exception so service-bus message is retried later

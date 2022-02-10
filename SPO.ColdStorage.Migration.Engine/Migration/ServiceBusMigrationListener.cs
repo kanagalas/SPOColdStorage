@@ -1,5 +1,4 @@
 ﻿using Azure.Messaging.ServiceBus;
-using Azure.Messaging.ServiceBus.Administration;
 using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
@@ -27,7 +26,9 @@ namespace SPO.ColdStorage.Migration.Engine
             _receiver = _sbClient.CreateProcessor(_config.ServiceBusQueueName, new ServiceBusProcessorOptions
             {
                 MaxConcurrentCalls = 10,
-                ReceiveMode = ServiceBusReceiveMode.PeekLock
+                ReceiveMode = ServiceBusReceiveMode.PeekLock,
+                MaxAutoLockRenewalDuration = TimeSpan.FromMinutes(4),       // Queue should be configured for 5 minute lock timeout
+                AutoCompleteMessages = false
             });
         }
 
@@ -41,18 +42,18 @@ namespace SPO.ColdStorage.Migration.Engine
                     await db.TargetSharePointSites.CountAsync();
                 }
 
-                // add handler to process messages
+                // Add handler to process messages
                 _receiver.ProcessMessageAsync += MessageHandler;
 
-                // add handler to process any errors
+                // Add handler to process any errors
                 _receiver.ProcessErrorAsync += ErrorHandler;
 
+                // Start processing SB messages
                 var sbConnectionProps = ServiceBusConnectionStringProperties.Parse(_config.ConnectionStrings.ServiceBus);
                 _tracer.TrackTrace($"Listening on service-bus '{sbConnectionProps.Endpoint}' for new files to migrate.");
-
-                // start processing 
                 await _receiver.StartProcessingAsync();
 
+                // Block infinitely
                 while (true)
                 {
                     await Task.Delay(1000);
@@ -76,7 +77,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 _tracer.TrackTrace($"Started migration for: {msg.ServerRelativeFilePath}");
 
 
-                // Fire & forget file migration on background thread. Message completed on success.
+                // Message completed on success.
                 await StartFileMigrationAsync(msg, args);
 
                 lock (_lockObj)
@@ -84,7 +85,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     _filesProcessedFromQueue++;
                     if (_filesProcessedFromQueue % REPORT_QUEUE_LENGTH_EVERY == 0)
                     {
-                        _tracer.TrackTrace($"{_filesProcessedFromQueue} files migrated...");
+                        _tracer.TrackTrace($"{_filesProcessedFromQueue} files processed...");
                     }
                 }
             }
@@ -102,6 +103,7 @@ namespace SPO.ColdStorage.Migration.Engine
             _tracer.TrackException(args.Exception);
             return Task.CompletedTask;
         }
+
 
         private async Task StartFileMigrationAsync(SharePointFileInfo sharePointFileToMigrate, ProcessMessageEventArgs args)
         {
@@ -125,6 +127,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 bool success = false;
                 try
                 {
+                    // Start migration
                     migratedFileSize = await sharePointFileMigrator.MigrateFromSharePointToBlobStorage(sharePointFileToMigrate, app);
                     success = true;
                 }
