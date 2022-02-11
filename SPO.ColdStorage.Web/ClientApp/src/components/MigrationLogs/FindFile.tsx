@@ -117,8 +117,8 @@ export class FindFile extends React.Component<SearchLogsProps, SearchLogsState> 
 
         return (
             <div>
-                <h1 id="tabelLabel">Migration Logs</h1>
-                <p>Search for a file that's been <strong>succesfully</strong> migrated to cold-storage.</p>
+                <h1 id="tabelLabel">Search for Files</h1>
+                <p>Search for a file in Azure Cognitive Search.</p>
                 <TextField id="outlined-basic" label="Search term" variant="standard" required
                     onChange={e => { this.setState({ searchTerm: e.target.value }); }} />
                 <Button variant="outlined" size="large"
