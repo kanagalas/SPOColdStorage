@@ -54,12 +54,6 @@ namespace SPO.ColdStorage.Migration.Engine.Model
 
         public bool IncludeFolderInMigration(string listTitle, string folderUrl)
         {
-            // Allow root
-            if (folderUrl == string.Empty)
-            {
-                return true;
-            }
-
             // No config set - allow all
             if (ListFilterConfig.Count == 0)
             {
@@ -104,10 +98,6 @@ namespace SPO.ColdStorage.Migration.Engine.Model
         public List<string> FolderWhiteList { get; set; } = new List<string>();
         public bool IncludeFolderInMigration(string url)
         {
-            if (url == String.Empty)
-            {
-                return true;
-            }
             if (FolderWhiteList.Count == 0)
             {
                 return true;
