@@ -1,19 +1,25 @@
 import '../NavMenu.css';
 import React from 'react';
 import { NewTargetForm } from './NewTargetForm'
-import { MigrationTarget } from './MigrationTarget'
+import { MigrationTargetSite } from './MigrationTargetConfigSummary'
 import Button from '@mui/material/Button';
 
-import { SiteBrowserDiag } from './SiteBrowser/SiteBrowserDiag';
-import { TargetMigrationSite } from './TargetSitesInterfaces';
+import { SelectedSiteBrowserDiag } from './SiteBrowser/SelectedSiteBrowserDiag';
+import { ListFolderConfig, SiteListFilterConfig } from './TargetSitesInterfaces';
+
+import update from 'immutability-helper';
 
 export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
 
   const [loading, setLoading] = React.useState<boolean>(false);
-  const [targetMigrationSites, setTargetMigrationSites] = React.useState<Array<TargetMigrationSite>>([]);
-  const [selectedSite, setSelectedSite] = React.useState<TargetMigrationSite | null>(null);
+  const [targetMigrationSites, setTargetMigrationSites] = React.useState<Array<SiteListFilterConfig>>([]);
+
+  // Dialogue box for a site list-picker opens when this isn't null
+  const [selectedSiteForDialogue, setSelectedSiteForDialogue] = React.useState<SiteListFilterConfig | null>(null);
 
   const getMigrationTargets = React.useCallback(async (token) => {
+
+    // Return list of configured sites & folders to migrate from own API
     return await fetch('AppConfiguration/GetMigrationTargets', {
       method: 'GET',
       headers: {
@@ -23,12 +29,14 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
     }
     )
       .then(async response => {
-        const data: TargetMigrationSite[] = await response.json();
+        const data: SiteListFilterConfig[] = await response.json();
         return Promise.resolve(data);
       })
       .catch(err => {
 
-        // alert('Loading storage data failed');
+        console.error('Loading migration configuration failed:');
+        console.error(err);
+
         setLoading(false);
 
         return Promise.reject();
@@ -37,18 +45,17 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
 
   React.useEffect(() => {
 
-    if (props.token) {
+    // Load sites config from API
+    getMigrationTargets(props.token)
+      .then((loadedTargetSites: SiteListFilterConfig[]) => {
 
-      // Load sites config from API
-      getMigrationTargets(props.token)
-        .then((allTargetSites: TargetMigrationSite[]) => {
+        setTargetMigrationSites(loadedTargetSites);
 
-          setTargetMigrationSites(allTargetSites);
+      });
 
-        });
-    }
-  }, [props, getMigrationTargets]);
+  }, [props.token, getMigrationTargets]);
 
+  // Add new site URL
   const addNewSiteUrl = (newSiteUrl: string) => {
     targetMigrationSites.forEach(s => {
       if (s.rootURL === newSiteUrl) {
@@ -57,14 +64,15 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
       }
     });
 
-    const newSiteDef: TargetMigrationSite =
+    const newSiteDef: SiteListFilterConfig =
     {
-      rootURL: newSiteUrl
+      rootURL: newSiteUrl,
+      listFilterConfig: []
     }
     setTargetMigrationSites(s => [...s, newSiteDef]);
   };
 
-  const removeSiteUrl = (selectedSite: TargetMigrationSite) => {
+  const removeSiteUrl = (selectedSite: SiteListFilterConfig) => {
     const idx = targetMigrationSites.indexOf(selectedSite);
     if (idx > -1) {
       targetMigrationSites.splice(idx);
@@ -72,26 +80,187 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
     }
   };
 
-  const configureListsAndFolders = (selectedSite: TargetMigrationSite) => {
-    setSelectedSite(selectedSite);
+  const selectLists = (selectedSite: SiteListFilterConfig) => {
+    setSelectedSiteForDialogue(selectedSite);
   };
+
+
+  // List & folder selection events
+  const folderRemoved = (folder: string, list: ListFolderConfig, site: SiteListFilterConfig) => {
+
+    // Find the roit site
+    const siteIdx = targetMigrationSites.indexOf(site);
+    if (siteIdx > -1) {
+
+      const listIdx = site.siteFilterConfig!.listFilterConfig.indexOf(list);
+      if (listIdx > -1) {
+
+        // Update model to send. Different from child state for display
+        const folderIdx = list.folderWhiteList.indexOf(folder);
+        if (folderIdx > -1) {
+
+          // Remove folder at specified location, in specified list, in specified site
+          var targetMigrationSitesUpdate = update(targetMigrationSites,
+            {
+              [siteIdx]:
+              {
+                listFilterConfig:
+                {
+                  [listIdx]:
+                  {
+                    folderWhiteList:
+                    {
+                      $splice: [[folderIdx, 1]]
+                    }
+                  }
+                }
+              }
+            }
+          );
+
+          // Update all sites state
+          setTargetMigrationSites(targetMigrationSitesUpdate);
+
+          // Reset the dialogue site for UI
+          const updatedSite = targetMigrationSitesUpdate.find(s => s.rootURL === selectedSiteForDialogue?.rootURL);
+          if (updatedSite) {
+            setSelectedSiteForDialogue(updatedSite!);
+          }
+        }
+      }
+    }
+
+  }
+  const folderAdd = (folder: string, list: ListFolderConfig, site: SiteListFilterConfig) => {
+
+    const siteIdx = targetMigrationSites.indexOf(site);
+    if (siteIdx > -1) {
+
+      const listIdx = site.listFilterConfig.indexOf(list);
+      if (listIdx > -1) {
+
+        // Update model to send. Different from child state for display
+        const folderIdx = list.folderWhiteList.indexOf(folder);
+        if (folderIdx === -1) {
+
+          // Remove folder at specified location, in specified list, in specified site
+          var targetMigrationSitesUpdate = update(targetMigrationSites,
+            {
+              [siteIdx]:
+              {
+                listFilterConfig:
+                {
+                  [listIdx]:
+                  {
+                    folderWhiteList:
+                    {
+                      $push: [folder]
+                    }
+                  }
+                }
+              }
+            }
+          );
+
+          // Update all sites state
+          setTargetMigrationSites(targetMigrationSitesUpdate);
+
+          // Reset the dialogue site for UI
+          const updatedSite = targetMigrationSitesUpdate.find(s => s.rootURL === selectedSiteForDialogue?.rootURL);
+          if (updatedSite) {
+            setSelectedSiteForDialogue(updatedSite!);
+          }
+        }
+        else
+          alert('Folder already added');
+      }
+    }
+
+  }
+  const listRemoved = (list: string, site: SiteListFilterConfig) => {
+
+    const siteIdx = targetMigrationSites.indexOf(site);
+    if (siteIdx > -1) {
+
+      let targetListConfig: ListFolderConfig | null = null;
+      site.siteFilterConfig!.listFilterConfig.forEach((listConfig: ListFolderConfig) => {
+        if (listConfig.listTitle === list) {
+          targetListConfig = listConfig;
+        }
+      });
+
+      if (targetListConfig) {
+        const listIdx = site.siteFilterConfig!.listFilterConfig.indexOf(targetListConfig);
+        if (listIdx > -1) {
+
+          var targetMigrationSitesUpdate = update(targetMigrationSites,
+            {
+              [siteIdx]:
+              {
+                listFilterConfig:
+                {
+                  $splice: [[listIdx, 1]]
+                }
+              }
+            }
+          );
+
+
+          // Update all sites state
+          setTargetMigrationSites(targetMigrationSitesUpdate);
+
+          // Reset the dialogue site for UI
+          const updatedSite = targetMigrationSitesUpdate.find(s => s.rootURL === selectedSiteForDialogue?.rootURL);
+          if (updatedSite) {
+            setSelectedSiteForDialogue(updatedSite!);
+          }
+        }
+
+      }
+    }
+  }
+  const listAdd = (list: string, site: SiteListFilterConfig) => {
+
+    const siteIdx = targetMigrationSites.indexOf(site);
+    if (siteIdx > -1) {
+
+      const newList: ListFolderConfig = { listTitle: list, folderWhiteList: [] };
+      var targetMigrationSitesUpdate = update(targetMigrationSites,
+        {
+          [siteIdx]:
+          {
+            listFilterConfig:
+            {
+              $push: [newList]
+            }
+          }
+        }
+      );
+
+      // Update all sites state
+      setTargetMigrationSites(targetMigrationSitesUpdate);
+
+      // Reset the dialogue site for UI
+      const updatedSite = targetMigrationSitesUpdate.find(s => s.rootURL === selectedSiteForDialogue?.rootURL);
+      if (updatedSite) {
+        setSelectedSiteForDialogue(updatedSite!);
+      }
+    }
+  }
 
   const saveAll = () => {
     setLoading(true);
-    fetch('migration', {
+    fetch('AppConfiguration/SetMigrationTargets', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + props.token,
       },
-      body: JSON.stringify(
-        {
-          TargetSites: targetMigrationSites
-        })
+      body: JSON.stringify(targetMigrationSites)
     }
     ).then(async response => {
       if (response.ok) {
-        alert('Success');
+        alert('Configuration saved to SQL');
       }
       else {
         alert(await response.text());
@@ -107,14 +276,18 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
   };
 
   const closeDiag = () => {
-    setSelectedSite(null);
+    setSelectedSiteForDialogue(null);
   }
+
 
   return (
     <div>
-      <h1>Cold Storage Access Web</h1>
+      <h1>Cold Storage Migration Targets</h1>
 
-      <p>Target sites for migration. When the migration tools run, these sites will be indexed &amp; copied to cold-storage.</p>
+      <p>
+        When the migration tools run, these sites will be indexed &amp; copied to cold-storage.
+        You can filter by list/library and then folders too.
+      </p>
 
       {!loading ?
         (
@@ -124,9 +297,9 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
               :
               (
                 <div id='migrationTargets'>
-                  {targetMigrationSites.map((targetMigrationSite: TargetMigrationSite) => (
-                    <MigrationTarget token={props.token} targetSite={targetMigrationSite}
-                      removeSiteUrl={removeSiteUrl} configureListsAndFolders={configureListsAndFolders} />
+                  {targetMigrationSites.map((SiteListFilterConfig: SiteListFilterConfig) => (
+                    <MigrationTargetSite token={props.token} targetSite={SiteListFilterConfig}
+                      removeSiteUrl={removeSiteUrl} selectLists={selectLists} key={SiteListFilterConfig.rootURL} />
                   ))}
 
                 </div>
@@ -142,8 +315,14 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
         : <div>Loading...</div>
       }
 
-      {selectedSite &&
-        <SiteBrowserDiag token={props.token} targetSite={selectedSite} open={selectedSite !== null} onClose={closeDiag} />
+      {selectedSiteForDialogue &&
+        <SelectedSiteBrowserDiag token={props.token} targetSite={selectedSiteForDialogue}
+          open={selectedSiteForDialogue !== null} onClose={closeDiag}
+          folderAdd={(f: string, list: ListFolderConfig, site: SiteListFilterConfig) => folderAdd(f, list, site)}
+          folderRemoved={(f: string, list: ListFolderConfig, site: SiteListFilterConfig) => folderRemoved(f, list, site)}
+          listAdd={(list: string, site: SiteListFilterConfig) => listAdd(list, site)}
+          listRemoved={(list: string, site: SiteListFilterConfig) => listRemoved(list, site)}
+        />
       }
     </div>
   );
