@@ -92,7 +92,7 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
     const siteIdx = targetMigrationSites.indexOf(site);
     if (siteIdx > -1) {
 
-      const listIdx = site.siteFilterConfig!.listFilterConfig.indexOf(list);
+      const listIdx = site.listFilterConfig.indexOf(list);
       if (listIdx > -1) {
 
         // Update model to send. Different from child state for display
@@ -285,7 +285,7 @@ export const MigrationTargetsConfig: React.FC<{ token: string }> = (props) => {
       <h1>Cold Storage Migration Targets</h1>
 
       <p>
-        When the migration tools run, these sites will be indexed &amp; copied to cold-storage.
+        When the migration processes run, these sites will be indexed &amp; and copied to cold-storage.
         You can filter by list/library and then folders too.
       </p>
 

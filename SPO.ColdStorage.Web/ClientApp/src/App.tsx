@@ -3,7 +3,9 @@ import { Route } from 'react-router';
 import { Layout } from './components/Layout';
 import { FileBrowser } from './components/FileBrowser/FileBrowser';
 import { Login } from './components/Login';
-import { FindFile } from './components/MigrationLogs/FindFile';
+import { FindFile } from './components/FileSearch/FindFile';
+import { FindMigrationLog } from './components/MigrationLogs/FindMigrationLog';
+
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { loginRequest } from "./authConfig";
 
@@ -49,6 +51,7 @@ export default function App() {
                         <AuthenticatedTemplate>
                             <Route exact path='/' render={() => <FileBrowser {... { token: accessToken! }} />} />
                             <Route path='/FindFile' render={() => <FindFile {... { token: accessToken! }} />} />
+                            <Route path='/FindMigrationLog' render={() => <FindMigrationLog {... { token: accessToken! }} />} />
                             <Route path='/MigrationTargets' render={() => <MigrationTargetsConfig {... { token: accessToken! }} />} />
                         </AuthenticatedTemplate>
                         <UnauthenticatedTemplate>

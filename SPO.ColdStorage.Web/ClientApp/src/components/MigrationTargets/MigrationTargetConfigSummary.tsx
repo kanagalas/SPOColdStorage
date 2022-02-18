@@ -22,8 +22,10 @@ export const MigrationTargetSite: React.FC<Props> = (props) => {
 
     return (
         <div>
-            <span>{props.targetSite.rootURL}</span>
-            <span><Button onClick={() => props.removeSiteUrl(props.targetSite)}>Remove</Button></span>
+            <div>
+                <span>+Site-collection: {props.targetSite.rootURL}</span>
+                <span><Button onClick={() => props.removeSiteUrl(props.targetSite)}>Remove</Button></span>
+            </div>
             <ul>
                 {props.targetSite.listFilterConfig === null || props.targetSite.listFilterConfig === undefined || props.targetSite.listFilterConfig!.length === 0 ?
                     <li>[Include all lists in site]</li>
