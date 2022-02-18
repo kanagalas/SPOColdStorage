@@ -28,8 +28,8 @@ namespace SPO.ColdStorage.Migration.Engine
                 MaxConcurrentCalls = 10,
                 PrefetchCount = 0,
                 ReceiveMode = ServiceBusReceiveMode.PeekLock,
-                MaxAutoLockRenewalDuration = TimeSpan.FromMinutes(60),       // Queue should be configured for 5 minute lock timeout
-                AutoCompleteMessages = false
+                MaxAutoLockRenewalDuration = TimeSpan.FromHours(24),        // Queue should be configured for 5 minute lock timeout
+                AutoCompleteMessages = false                                // Messages are completed only when the migrator has succeeded to migrate the file
             });
         }
 
