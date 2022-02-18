@@ -7,7 +7,6 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
     {
         public static async Task ExecuteQueryAsyncWithThrottleRetries(this ClientContext clientContext, DebugTracer tracer)
         {
-            int retryCount = 10;
             int retryAttempts = 0;
             int backoffIntervalSeconds = 1;
             int retryAfterInterval = 0;
@@ -15,7 +14,7 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
             ClientRequestWrapper? wrapper = null;
 
             // Do while retry attempt is less than retry count
-            while (retryAttempts < retryCount)
+            while (retryAttempts < Constants.MAX_SPO_API_RETRIES)
             {
                 try
                 {
@@ -86,7 +85,11 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
                     }
                 }
             }
-            throw new Exception($"Maximum retry attempts {retryCount}, has be attempted.");
+
+            // Track error & throw exception
+            var givingUpMsgBody = $"Maximum retry attempts {Constants.MAX_SPO_API_RETRIES} has been attempted.";
+            tracer.TrackTrace($"{Constants.THROTTLE_ERROR} executing CSOM request. {givingUpMsgBody}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+            throw new Exception($"Error executing CSOM request. {givingUpMsgBody}");
 
         }
     }

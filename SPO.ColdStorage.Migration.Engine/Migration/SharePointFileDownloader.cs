@@ -10,7 +10,6 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
     /// </summary>
     public class SharePointFileDownloader : BaseComponent
     {
-        const int MAX_RETRIES = 5;
         private readonly IConfidentialClientApplication _app;
         private readonly HttpClient _client;
         public SharePointFileDownloader(IConfidentialClientApplication app, Config config, DebugTracer debugTracer) : base(config, debugTracer)
@@ -55,8 +54,12 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                 {
                     if (!response.IsSuccessStatusCode && response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                     {
-                        if (retries == MAX_RETRIES)
+                        // Worth trying any more?
+                        if (retries == Constants.MAX_SPO_API_RETRIES)
                         {
+                            _tracer.TrackTrace($"{Constants.THROTTLE_ERROR} downloading file contents from SPO REST. Maximum retry attempts {Constants.MAX_SPO_API_RETRIES} has been attempted.", 
+                                Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                            
                             // Allow normal HTTP exception & abort download
                             response.EnsureSuccessStatusCode();
                         }
