@@ -61,8 +61,10 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
                             response.EnsureSuccessStatusCode();
                         }
 
+                        // We've not reached throttling max retries...keep retrying
                         retries++;
-                        Console.WriteLine($"Got throttled downloading '{sharePointFile.FullSharePointUrl}'. Waiting {retries} seconds to try again...");
+                        _tracer.TrackTrace($"{Constants.THROTTLE_ERROR} downloading file contents from SPO REST. Waiting {retries} seconds to try again...", 
+                            Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
                         await Task.Delay(1000 * retries);
                     }
 

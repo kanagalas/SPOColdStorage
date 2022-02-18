@@ -49,7 +49,7 @@ namespace SPO.ColdStorage.LoadGenerator
 
         private async Task AddFiles(int fileStartIndex, int filesToInsert, int threadIndex)
         {
-            var ctx = await AuthUtils.GetClientContext(_options.TargetWeb!, _options.TenantId!, _options.ClientID!, _options.ClientSecret!, _options.KeyVaultUrl!, _options.BaseServerAddress!);
+            var ctx = await AuthUtils.GetClientContext(_options.TargetWeb!, _options.TenantId!, _options.ClientID!, _options.ClientSecret!, _options.KeyVaultUrl!, _options.BaseServerAddress!, DebugTracer.ConsoleOnlyTracer());
 
             var targetLists = await GetAllListsAllWebs(ctx);
 
@@ -85,7 +85,7 @@ namespace SPO.ColdStorage.LoadGenerator
             var rootWeb = ctx.Web;
             ctx.Load(rootWeb);
             ctx.Load(rootWeb.Webs);
-            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+            await ctx.ExecuteQueryAsyncWithThrottleRetries(DebugTracer.ConsoleOnlyTracer());
 
             results.AddRange(await GetAllLists(rootWeb, ctx));
 
@@ -135,7 +135,8 @@ namespace SPO.ColdStorage.LoadGenerator
 
             oListItem.Update();
 
-            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+            var tracer = DebugTracer.ConsoleOnlyTracer();
+            await ctx.ExecuteQueryAsyncWithThrottleRetries(tracer);
 
             var attInfo = new AttachmentCreationInformation();
             attInfo.FileName = newName + ".txt";
@@ -147,7 +148,7 @@ namespace SPO.ColdStorage.LoadGenerator
 
             try
             {
-                await ctx.ExecuteQueryAsyncWithThrottleRetries();
+                await ctx.ExecuteQueryAsyncWithThrottleRetries(tracer);
             }
             catch (ServerException ex)
             {

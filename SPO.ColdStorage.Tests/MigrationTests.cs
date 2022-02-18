@@ -54,7 +54,7 @@ namespace SPO.ColdStorage.Tests
             var migrator = new SharePointFileMigrator(_config!, _tracer);
 
             var app = await AuthUtils.GetNewClientApp(_config!);
-            var ctx = await AuthUtils.GetClientContext(app, _config!.BaseServerAddress, _config!.DevConfig.DefaultSharePointSite);
+            var ctx = await AuthUtils.GetClientContext(app, _config!.BaseServerAddress, _config!.DevConfig.DefaultSharePointSite, _tracer);
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");
@@ -99,7 +99,7 @@ namespace SPO.ColdStorage.Tests
 
 
             var app = await AuthUtils.GetNewClientApp(_config!);
-            var ctx = await AuthUtils.GetClientContext(app, _config!.BaseServerAddress, _config!.DevConfig.DefaultSharePointSite);
+            var ctx = await AuthUtils.GetClientContext(app, _config!.BaseServerAddress, _config!.DevConfig.DefaultSharePointSite, _tracer);
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");

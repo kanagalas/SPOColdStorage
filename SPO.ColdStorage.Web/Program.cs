@@ -17,9 +17,12 @@ builder.Services.AddDbContext<SPOColdStorageDbContext>(
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 builder.Services.AddApplicationInsightsTelemetry(builder.Configuration["APPINSIGHTS_CONNECTIONSTRING"]);
-var app = builder.Build();
 
 var telemetry = new DebugTracer(config.AppInsightsInstrumentationKey, "Web Start");
+builder.Services.AddSingleton(telemetry);
+
+var app = builder.Build();
+
 try
 {
     // Init DB if needed

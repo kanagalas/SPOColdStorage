@@ -70,7 +70,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         async Task StartSiteMigration(string siteUrl, SiteListFilterConfig siteFolderConfig)
         {
-            var ctx = await AuthUtils.GetClientContext(_config, siteUrl);
+            var ctx = await AuthUtils.GetClientContext(_config, siteUrl, _tracer);
 
             _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 

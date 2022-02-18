@@ -25,7 +25,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
         }
 
-        public async static Task<ClientContext> GetClientContext(string siteUrl, string tenantId, string clientId, string clientSecret, string keyVaultUrl, string baseServerAddress)
+        public async static Task<ClientContext> GetClientContext(string siteUrl, string tenantId, string clientId, string clientSecret, string keyVaultUrl, string baseServerAddress, DebugTracer tracer)
         {
             if (string.IsNullOrEmpty(siteUrl))
             {
@@ -67,11 +67,11 @@ namespace SPO.ColdStorage.Migration.Engine
             };
 
             ctx.Load(ctx.Web);
-            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+            await ctx.ExecuteQueryAsyncWithThrottleRetries(tracer);
 
             return ctx;
         }
-        public async static Task<ClientContext> GetClientContext(IConfidentialClientApplication app, string baseServerAddress, string siteUrl)
+        public async static Task<ClientContext> GetClientContext(IConfidentialClientApplication app, string baseServerAddress, string siteUrl, DebugTracer tracer)
         {
             var result = await app.AuthForSharePointOnline(baseServerAddress);
 
@@ -83,7 +83,7 @@ namespace SPO.ColdStorage.Migration.Engine
             };
 
             ctx.Load(ctx.Web);
-            await ctx.ExecuteQueryAsyncWithThrottleRetries();
+            await ctx.ExecuteQueryAsyncWithThrottleRetries(tracer);
 
             return ctx;
         }
@@ -99,10 +99,10 @@ namespace SPO.ColdStorage.Migration.Engine
             return app;
         }
 
-        public static async Task<ClientContext> GetClientContext(Config config, string siteUrl)
+        public static async Task<ClientContext> GetClientContext(Config config, string siteUrl, DebugTracer tracer)
         {
             return await GetClientContext(siteUrl, config.AzureAdConfig.TenantId!, config.AzureAdConfig.ClientID!,
-                config.AzureAdConfig.Secret!, config.KeyVaultUrl, config.BaseServerAddress);
+                config.AzureAdConfig.Secret!, config.KeyVaultUrl, config.BaseServerAddress, tracer);
         }
 
         public static async Task<IConfidentialClientApplication> GetNewClientApp(Config config)

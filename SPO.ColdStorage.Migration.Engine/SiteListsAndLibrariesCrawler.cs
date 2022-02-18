@@ -33,7 +33,7 @@ namespace SPO.ColdStorage.Migration.Engine
             var rootWeb = _spClient.Web;
             await EnsureContextWebIsLoaded();
             _spClient.Load(rootWeb.Webs);
-            await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+            await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
 
             await ProcessWeb(rootWeb, siteFolderConfig);
@@ -48,12 +48,12 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             Console.WriteLine($"Reading web '{web.ServerRelativeUrl}'...");
             _spClient.Load(web.Lists);
-            await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+            await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
             foreach (var list in web.Lists)
             {
                 _spClient.Load(list, l => l.IsSystemList);
-                await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+                await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
                 // Do not search through system or hidden lists
                 if (!list.Hidden && !list.IsSystemList)
@@ -83,7 +83,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             await EnsureContextWebIsLoaded();
             _spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
-            await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+            await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
             var results = new List<SharePointFileInfo>();
 
@@ -132,7 +132,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
                 try
                 {
-                    await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+                    await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
                 }
                 catch (System.Net.WebException ex)
                 {
@@ -243,7 +243,7 @@ namespace SPO.ColdStorage.Migration.Engine
             {
                 _spClient.Load(_spClient.Web);
                 _spClient.Load(_spClient.Site, s => s.Url);
-                await _spClient.ExecuteQueryAsyncWithThrottleRetries();
+                await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
             }
         }
 

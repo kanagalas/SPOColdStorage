@@ -17,7 +17,7 @@ await Parser.Default.ParseArguments<Options>(args).WithParsedAsync<Options>(asyn
     }
 
 
-    var ctx = await AuthUtils.GetClientContext(o.TargetWeb!, o.TenantId!, o.ClientID!, o.ClientSecret!, o.KeyVaultUrl!, o.BaseServerAddress!);
+    var ctx = await AuthUtils.GetClientContext(o.TargetWeb!, o.TenantId!, o.ClientID!, o.ClientSecret!, o.KeyVaultUrl!, o.BaseServerAddress!, DebugTracer.ConsoleOnlyTracer());
     var gen = new LoadGenerator(o);
     await gen.Go(o.FileCount);
 

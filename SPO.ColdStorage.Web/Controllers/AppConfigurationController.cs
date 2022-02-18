@@ -18,13 +18,13 @@ namespace SPO.ColdStorage.Web.Controllers
     [Route("[controller]")]
     public class AppConfigurationController : ControllerBase
     {
-        private readonly ILogger<AppConfigurationController> _logger;
+        private readonly DebugTracer _tracer;
         private readonly SPOColdStorageDbContext _context;
         private readonly Config _config;
 
-        public AppConfigurationController(ILogger<AppConfigurationController> logger, SPOColdStorageDbContext context, Config config)
+        public AppConfigurationController(SPOColdStorageDbContext context, Config config, DebugTracer tracer)
         {
-            _logger = logger;
+            _tracer = tracer;
             this._context = context;
             this._config = config;
         }
@@ -105,11 +105,12 @@ namespace SPO.ColdStorage.Web.Controllers
             // Verify auth works with 1st item
             try
             {
-                await AuthUtils.GetClientContext(_config, targets[0].RootURL);
+                await AuthUtils.GetClientContext(_config, targets[0].RootURL, _tracer);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error validating authentication to SharePoint Online");
+                _tracer.TrackException(ex);
+                _tracer.TrackTrace("Error validating authentication to SharePoint Online", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Critical);
                 return BadRequest($"Got '{ex.Message}' trying to get a token for SPO authentication. Check service configuration.");
             }
 
@@ -123,13 +124,14 @@ namespace SPO.ColdStorage.Web.Controllers
             {
                 try
                 {
-                    var siteContext = await AuthUtils.GetClientContext(_config, target.RootURL);
+                    var siteContext = await AuthUtils.GetClientContext(_config, target.RootURL, _tracer);
                     siteContext.Load(siteContext.Web);
                     await siteContext.ExecuteQueryAsync();
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error validating site");
+                    _tracer.TrackException(ex);
+                    _tracer.TrackTrace($"Error validating site '{target.RootURL}'", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                     return BadRequest($"Got '{ex.Message}' validating SPO site URL '{target}'. It's not a valid SharePoint site-collection URL?");
                 }
 
