@@ -74,14 +74,14 @@ namespace SPO.ColdStorage.Migration.Engine
 
             _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
-            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound);
-            await crawler.CrawlContextRootWebAndSubwebs(siteFolderConfig);
+            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound, null);
+            await crawler.StartCrawl(siteFolderConfig);
         }
 
         /// <summary>
         /// Crawler found a relevant file
         /// </summary>
-        private async Task Crawler_SharePointFileFound(SharePointFileInfo foundFileInfo)
+        private async Task Crawler_SharePointFileFound(BaseSharePointFileInfo foundFileInfo)
         {
             await _sharePointFileMigrator.QueueSharePointFileMigrationIfNeeded(foundFileInfo, _containerClient!);
         }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Identity.Client;
 using SPO.ColdStorage.Entities.Configuration;
+using SPO.ColdStorage.Migration.Engine.Utils;
 using SPO.ColdStorage.Models;
 using System.Net.Http.Headers;
 
@@ -11,12 +12,11 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
     public class SharePointFileDownloader : BaseComponent
     {
         private readonly IConfidentialClientApplication _app;
-        private readonly HttpClient _client;
+        private readonly SecureSPThrottledHttpClient _client;
         public SharePointFileDownloader(IConfidentialClientApplication app, Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
             _app = app;
-            _client = new HttpClient();
-
+            _client = new SecureSPThrottledHttpClient(config, true, debugTracer);
 
             var productValue = new ProductInfoHeaderValue("SPOColdStorageMigration", "1.0");
             var commentValue = new ProductInfoHeaderValue("(+https://github.com/sambetts/SPOColdStorage)");
@@ -33,63 +33,35 @@ namespace SPO.ColdStorage.Migration.Engine.Migration
         /// Uses manual HTTP calls as CSOM doesn't work with files > 2gb. 
         /// This routine writes 2mb chunks at a time to a temp file from HTTP response.
         /// </remarks>
-        public async Task<(string, long)> DownloadFileToTempDir(SharePointFileInfo sharePointFile)
+        public async Task<(string, long)> DownloadFileToTempDir(BaseSharePointFileInfo sharePointFile)
         {
             // Write to temp file
             var tempFileName = GetTempFileNameAndCreateDir(sharePointFile);
 
             _tracer.TrackTrace($"Downloading '{sharePointFile.FullSharePointUrl}'...", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
-
-            var auth = await _app.AuthForSharePointOnline(_config.BaseServerAddress);
-            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
             var url = $"{sharePointFile.WebUrl}/_api/web/GetFileByServerRelativeUrl('{sharePointFile.ServerRelativeFilePath}')/OpenBinaryStream";
 
             long fileSize = 0;
-            int retries = 0;    
-            bool retryDownload = true;
-            while (retryDownload)
+
+            // Get response but don't buffer full content (which will buffer overlflow for large files)
+            using (var response = await _client.GetAsyncWithThrottleRetries(url, HttpCompletionOption.ResponseHeadersRead, _tracer))
             {
-                // Get response but don't buffer full content (which will buffer overlflow for large files)
-                using (var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
+                using (var streamToReadFrom = await response.Content.ReadAsStreamAsync())
+                using (var streamToWriteTo = File.Open(tempFileName, FileMode.Create))
                 {
-                    if (!response.IsSuccessStatusCode && response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                    {
-                        // Worth trying any more?
-                        if (retries == Constants.MAX_SPO_API_RETRIES)
-                        {
-                            _tracer.TrackTrace($"{Constants.THROTTLE_ERROR} downloading file contents from SPO REST. Maximum retry attempts {Constants.MAX_SPO_API_RETRIES} has been attempted.", 
-                                Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
-                            
-                            // Allow normal HTTP exception & abort download
-                            response.EnsureSuccessStatusCode();
-                        }
-
-                        // We've not reached throttling max retries...keep retrying
-                        retries++;
-                        _tracer.TrackTrace($"{Constants.THROTTLE_ERROR} downloading file contents from SPO REST. Waiting {retries} seconds to try again...", 
-                            Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
-                        await Task.Delay(1000 * retries);
-                    }
-
-                    using (var streamToReadFrom = await response.Content.ReadAsStreamAsync())
-                    using (var streamToWriteTo = File.Open(tempFileName, FileMode.Create))
-                    {
-                        await streamToReadFrom.CopyToAsync(streamToWriteTo);
-                        fileSize = streamToWriteTo.Length;
-                    }
-
-                    // Sucess
-                    retryDownload = false;
+                    await streamToReadFrom.CopyToAsync(streamToWriteTo);
+                    fileSize = streamToWriteTo.Length;
                 }
-
-                _tracer.TrackTrace($"Wrote {fileSize.ToString("N0")} bytes to '{tempFileName}'.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
             }
-            
+
+            _tracer.TrackTrace($"Wrote {fileSize.ToString("N0")} bytes to '{tempFileName}'.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Verbose);
+
+
             // Return file name & size
             return (tempFileName, fileSize);
         }
 
-        public static string GetTempFileNameAndCreateDir(SharePointFileInfo sharePointFile)
+        public static string GetTempFileNameAndCreateDir(BaseSharePointFileInfo sharePointFile)
         {
             var tempFileName = Path.GetTempPath() + @"\SpoColdStorageMigration\" + DateTime.Now.Ticks + @"\" + sharePointFile.ServerRelativeFilePath.Replace("/", @"\");
             var tempFileInfo = new FileInfo(tempFileName);

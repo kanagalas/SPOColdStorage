@@ -3,10 +3,22 @@
 namespace SPO.ColdStorage.Models
 {
     /// <summary>
-    /// SharePoint Online file metadata
+    /// SharePoint Online file metadata for base file-type
     /// </summary>
-    public class SharePointFileInfo 
+    public class BaseSharePointFileInfo 
     {
+        public BaseSharePointFileInfo() { }
+        public BaseSharePointFileInfo(BaseSharePointFileInfo driveArg) : this()
+        {
+            this.SiteUrl = driveArg.SiteUrl;
+            this.WebUrl = driveArg.WebUrl;
+            this.ServerRelativeFilePath = driveArg.ServerRelativeFilePath;
+            this.Author = driveArg.Author;
+            this.Subfolder = driveArg.Subfolder;
+            this.LastModified = driveArg.LastModified;
+            this.FileSize = driveArg.FileSize;
+        }
+
         /// <summary>
         /// Example: https://m365x352268.sharepoint.com/sites/MigrationHost
         /// </summary>
@@ -30,7 +42,12 @@ namespace SPO.ColdStorage.Models
         public string Subfolder { get; set; } = string.Empty;
 
         public DateTime LastModified { get; set; } = DateTime.MinValue;
-        
+
+        /// <summary>
+        /// Bytes
+        /// </summary>
+        public long FileSize { get; set; } = 0;
+
         /// <summary>
         /// Calculated.
         /// </summary>
@@ -56,6 +73,11 @@ namespace SPO.ColdStorage.Models
                     return !Subfolder.StartsWith("/") && !Subfolder.EndsWith("/") && !Subfolder.Contains(@"//");
                 }
             }
+        }
+
+        public override string ToString()
+        {
+            return $"{this.ServerRelativeFilePath}";
         }
 
         /// <summary>
@@ -90,5 +112,32 @@ namespace SPO.ColdStorage.Models
                 }
             }
         }
+    }
+
+    public class SharePointFileInfoWithList : BaseSharePointFileInfo
+    {
+        public SharePointFileInfoWithList() { }
+        public SharePointFileInfoWithList(DriveItemSharePointFileInfo driveArg) : base(driveArg)
+        {
+            this.List = driveArg.List;
+        }
+
+        /// <summary>
+        /// Parent list
+        /// </summary>
+        public SiteList List { get; set; } = new SiteList();
+    }
+
+    public class DriveItemSharePointFileInfo : SharePointFileInfoWithList
+    {
+        public DriveItemSharePointFileInfo() :base() { }
+        public DriveItemSharePointFileInfo(DriveItemSharePointFileInfo driveArg) : base(driveArg)
+        {
+            this.DriveId = driveArg.DriveId;
+            this.GraphItemId = driveArg.GraphItemId;
+        }
+
+        public string DriveId { get; set; } = string.Empty;
+        public string GraphItemId { get; set; } = string.Empty;
     }
 }
