@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Headers;
+﻿using SPO.ColdStorage.Migration.Engine.Utils.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace SPO.ColdStorage.Migration.Engine.Utils

@@ -1,14 +1,14 @@
-﻿using Microsoft.Identity.Client;
-using SPO.ColdStorage.Entities.Configuration;
-using System.Net.Http.Headers;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace SPO.ColdStorage.Migration.Engine.Utils
+namespace SPO.ColdStorage.Migration.Engine.Utils.Http
 {
-    /// <summary>
-    /// HttpClient that can handle HTTP 429s automatically
-    /// </summary>
-    public class SecureSPThrottledHttpClient : HttpClient
+    public class AutoThrottleHttpClient : HttpClient
     {
+
         #region Constructor, Props, and Privates
 
         private readonly bool ignoreRetryHeader;
@@ -18,44 +18,19 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
         private object _concurrentCallsObj = new object(), _throttledCallsObject = new object(), _completedCallsObject = new object();
 
 
-        public SecureSPThrottledHttpClient(Config config, bool ignoreRetryHeader, DebugTracer debugTracer) : base(new SecureSPHandler(config, debugTracer))
-        { 
+        public AutoThrottleHttpClient(bool ignoreRetryHeader, DebugTracer debugTracer)
+        {
+            this.Timeout = TimeSpan.FromHours(1);
+            this.ignoreRetryHeader = ignoreRetryHeader;
+            this.debugTracer = debugTracer;
+        }
+        public AutoThrottleHttpClient(bool ignoreRetryHeader, DebugTracer debugTracer, DelegatingHandler handler) :base(handler)
+        {
             this.Timeout = TimeSpan.FromHours(1);
             this.ignoreRetryHeader = ignoreRetryHeader;
             this.debugTracer = debugTracer;
         }
 
-        public int ConcurrentCalls
-        {
-            get
-            {
-                lock (_concurrentCallsObj)
-                {
-                    return _concurrentCalls;
-                }
-            }
-        }
-        public int ThrottledCalls
-        {
-            get
-            {
-                lock (_throttledCallsObject)
-                {
-                    return _throttledCalls;
-                }
-            }
-        }
-
-        public int CompletedCalls
-        {
-            get
-            {
-                lock (_completedCallsObject)
-                {
-                    return _completedCalls;
-                }
-            }
-        }
 
         #endregion
 
@@ -162,32 +137,37 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
             return response!;
         }
 
-    }
 
-    public class SecureSPHandler : DelegatingHandler
-    {
-        protected Config _config;
-        private AuthenticationResult? auth = null;
-        public SecureSPHandler(Config config, DebugTracer debugTracer)
+        public int ConcurrentCalls
         {
-            this._config = config;
-            InnerHandler = new HttpClientHandler();
-        }
-
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-
-            // Get auth for REST
-            var app = await AuthUtils.GetNewClientApp(_config);
-
-            if (auth == null || auth.ExpiresOn < DateTimeOffset.Now.AddMinutes(5))
+            get
             {
-                auth = await app.AuthForSharePointOnline(_config.BaseServerAddress);
+                lock (_concurrentCallsObj)
+                {
+                    return _concurrentCalls;
+                }
             }
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
-
-            return await base.SendAsync(request, cancellationToken);
+        }
+        public int ThrottledCalls
+        {
+            get
+            {
+                lock (_throttledCallsObject)
+                {
+                    return _throttledCalls;
+                }
+            }
         }
 
+        public int CompletedCalls
+        {
+            get
+            {
+                lock (_completedCallsObject)
+                {
+                    return _completedCalls;
+                }
+            }
+        }
     }
 }

@@ -169,7 +169,15 @@ namespace SPO.ColdStorage.Migration.Engine
                         var docLib = (DocLib)listModel;
                         if (string.IsNullOrEmpty(docLib.DriveId))
                         {
-                            ((DocLib)listModel).DriveId = item.File.VroomDriveID;
+                            try
+                            {
+                                ((DocLib)listModel).DriveId = item.File.VroomDriveID;
+                            }
+                            catch (ServerObjectNullReferenceException)
+                            {
+                                _tracer.TrackTrace($"WARNING: Couldn't get Drive info for list {list.Title}. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                                break;
+                            }
                         }
 
                         foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig);

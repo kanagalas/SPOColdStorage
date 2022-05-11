@@ -4,6 +4,7 @@ using SPO.ColdStorage.Entities.DBEntities;
 using SPO.ColdStorage.Migration.Engine.Utils;
 using SPO.ColdStorage.Models;
 using SPO.ColdStorage.Migration.Engine.Utils.Extentions;
+using SPO.ColdStorage.Migration.Engine.Utils.Http;
 
 namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 {
@@ -21,7 +22,6 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
         private SecureSPThrottledHttpClient _httpClient;
 
         private bool _showStats = false;
-        private List<SharePointFileInfoWithList> _outstandingFilesBuffer = new();
         private List<SharePointFileInfoWithList> _fileFoundBuffer = new();
         private List<Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>>> _backgroundMetaTasksAnalytics = new();
         private List<Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>>> _backgroundMetaTasksVersionHistory = new();
@@ -74,7 +74,16 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
             if (!_model.Finished.HasValue)
             {
-                var ctx = await AuthUtils.GetClientContext(_config, _site.RootURL, _tracer);
+                Microsoft.SharePoint.Client.ClientContext? ctx = null;
+                try
+                {
+                    ctx = await AuthUtils.GetClientContext(_config, _site.RootURL, _tracer);
+                }
+                catch (System.Net.WebException ex)
+                {
+                    _tracer.TrackTrace($"ERROR: '{ex.Message}' reading site {_site.RootURL}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                    return _model;
+                }
 
                 var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer,
                     (SharePointFileInfoWithList foundFile) => Crawler_SharePointFileFound(foundFile, batchSize, newFilesCallback),

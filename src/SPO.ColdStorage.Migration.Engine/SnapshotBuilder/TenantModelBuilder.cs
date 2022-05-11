@@ -1,8 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Online.SharePoint.TenantAdministration;
+using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
+using SPO.ColdStorage.Migration.Engine.Utils;
+using SPO.ColdStorage.Migration.Engine.Utils.Http;
 using SPO.ColdStorage.Models;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 {
@@ -26,15 +34,35 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
                 if (sitesToAnalyse.Count == 0)
                 {
-                    _tracer.TrackTrace($"No sites configured to snapshot.");
+                    // Analyse all site-collections
+                    var url = $"https://graph.microsoft.com/beta/sites";
+                    var httpClient = new GraphThrottledHttpClient(_config, false, _tracer);
+
+                    var sites = await httpClient.LoadGraphPageable<SiteCollectionsResult, SiteCollection>(url, _tracer);
+
+                    var defaultSitesAll = new List<TargetMigrationSite>();
+                    if (sites != null)
+                    {
+                        foreach (var sp in sites)
+                        {
+                            defaultSitesAll.Add(new TargetMigrationSite { RootURL = sp.WebUrl });
+                        }
+                    }
+
+                    await AnalyseSites(defaultSitesAll);
                 }
                 else
                     _tracer.TrackTrace($"Taking snapshot of {sitesToAnalyse.Count} site(s):");
-                foreach (var s in sitesToAnalyse)
-                {
-                    _tracer.TrackTrace($"--{s.RootURL}");
-                    await StartSiteAnalysisAsync(s);
-                }
+                await AnalyseSites(sitesToAnalyse);
+            }
+        }
+
+        async Task AnalyseSites(IEnumerable<TargetMigrationSite> sitesToAnalyse)
+        {
+            foreach (var s in sitesToAnalyse)
+            {
+                _tracer.TrackTrace($"--{s.RootURL}");
+                await StartSiteAnalysisAsync(s);
             }
         }
 

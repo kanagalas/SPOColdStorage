@@ -9,6 +9,7 @@ using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Utils;
+using SPO.ColdStorage.Migration.Engine.Utils.Http;
 using SPO.ColdStorage.Models;
 using System;
 using System.Linq;

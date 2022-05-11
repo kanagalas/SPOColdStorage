@@ -13,6 +13,7 @@ using SPO.ColdStorage.Models;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Linq;
+using SPO.ColdStorage.Migration.Engine.Utils.Http;
 
 namespace SPO.ColdStorage.Tests
 {
