@@ -158,32 +158,43 @@ namespace SPO.ColdStorage.Migration.Engine
                 currentPosition = listItems.ListItemCollectionPosition;
                 foreach (var item in listItems)
                 {
-                    BaseSharePointFileInfo? foundFileInfo = null;
-                    if (list.BaseType == BaseType.GenericList)
-                    {
-                        results.AddRange(await ProcessListItemAttachments(item, listModel, listFolderConfig));
-                    }
-                    else if (list.BaseType == BaseType.DocumentLibrary)
-                    {
-                        // We might be able get the drive Id from the actual list, but not sure how...get it from 1st item instead
-                        var docLib = (DocLib)listModel;
-                        if (string.IsNullOrEmpty(docLib.DriveId))
-                        {
-                            try
-                            {
-                                ((DocLib)listModel).DriveId = item.File.VroomDriveID;
-                            }
-                            catch (ServerObjectNullReferenceException)
-                            {
-                                _tracer.TrackTrace($"WARNING: Couldn't get Drive info for list {list.Title}. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
-                                break;
-                            }
-                        }
+                    var contentTypeId = item.FieldValues["ContentTypeId"]?.ToString();
+                    var itemIsFolder = contentTypeId != null && contentTypeId.StartsWith("0x012");
+                    var itemUrl = item.FieldValues["FileRef"]?.ToString();
 
-                        foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig);
+                    if (!itemIsFolder)
+                    {
+                        BaseSharePointFileInfo? foundFileInfo = null;
+                        if (list.BaseType == BaseType.GenericList)
+                        {
+                            results.AddRange(await ProcessListItemAttachments(item, listModel, listFolderConfig));
+                        }
+                        else if (list.BaseType == BaseType.DocumentLibrary)
+                        {
+                            // We might be able get the drive Id from the actual list, but not sure how...get it from 1st item instead
+                            var docLib = (DocLib)listModel;
+                            if (string.IsNullOrEmpty(docLib.DriveId))
+                            {
+                                try
+                                {
+                                    ((DocLib)listModel).DriveId = item.File.VroomDriveID;
+                                }
+                                catch (ServerObjectNullReferenceException)
+                                {
+                                    _tracer.TrackTrace($"WARNING: Couldn't get Drive info for list {list.Title} on item {itemUrl}. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                                    break;
+                                }
+                            }
+
+                            foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig);
+                        }
+                        if (foundFileInfo != null)
+                        {
+                            Console.WriteLine($"+{foundFileInfo.ServerRelativeFilePath}");
+                            results.Add(foundFileInfo!);
+                        }
+                            
                     }
-                    if (foundFileInfo != null)
-                        results.Add(foundFileInfo!);
                 }
             }
             while (currentPosition != null);

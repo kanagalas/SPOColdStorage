@@ -5,16 +5,16 @@ using System.Text;
 
 namespace SPO.ColdStorage.LoadGenerator
 {
-    internal class LoadGenerator
+    internal class SharePointLoadGenerator
     {
         private readonly Options _options;
 
-        public LoadGenerator(Options options)
+        public SharePointLoadGenerator(Options options)
         {
             this._options = options;
         }
 
-        public async Task Go(int fileCount)
+        public async Task CreateFiles(int fileCount)
         {
             int filesAdded = 0;
 
