@@ -16,10 +16,17 @@ namespace SPO.ColdStorage.Entities
         public SPOColdStorageDbContext(Config config)
         {
             this._config = config;
+            SetCommandTimeout();
         }
         public SPOColdStorageDbContext(DbContextOptions<SPOColdStorageDbContext> options, Config? config) : base(options)
         {
             this._config = config;
+            SetCommandTimeout();
+        }
+
+        void SetCommandTimeout()
+        {
+            Database.SetCommandTimeout(TimeSpan.FromHours(1).Seconds);
         }
 
         // Migrations:
