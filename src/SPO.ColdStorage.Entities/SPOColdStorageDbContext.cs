@@ -26,7 +26,8 @@ namespace SPO.ColdStorage.Entities
 
         void SetCommandTimeout()
         {
-            Database.SetCommandTimeout(TimeSpan.FromHours(1).Seconds);
+            const int ONE_HOUR = 3600;
+            Database.SetCommandTimeout(ONE_HOUR * 12);
         }
 
         // Migrations:
