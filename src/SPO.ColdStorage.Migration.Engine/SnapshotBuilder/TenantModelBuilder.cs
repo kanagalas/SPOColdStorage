@@ -1,23 +1,16 @@
-﻿using Azure.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Online.SharePoint.TenantAdministration;
-using Microsoft.SharePoint.Client;
+﻿using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
-using SPO.ColdStorage.Migration.Engine.Utils;
 using SPO.ColdStorage.Migration.Engine.Utils.Http;
 using SPO.ColdStorage.Models;
-using System.Net.Http.Headers;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 {
     public class TenantModelBuilder : BaseComponent
     {
         private List<Task> _updateTasks = new();
-        private StagingFilesMigrator stagingFilesMigrator = new();
+        private StagingFilesMigrator _stagingFilesMigrator = new();
         public TenantModelBuilder(Config config, DebugTracer debugTracer) : base(config, debugTracer)
         {
         }
@@ -26,8 +19,8 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
         {
             using (var db = new SPOColdStorageDbContext(this._config))
             {
-                // Clean staging 1st
-                await stagingFilesMigrator.CleanStagingAll(db);
+                // Clean staging table 1st
+                await _stagingFilesMigrator.CleanStagingAll(db);
 
                 // Start analysis
                 var sitesToAnalyse = await db.TargetSharePointSites.ToListAsync();
@@ -61,7 +54,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
         {
             foreach (var s in sitesToAnalyse)
             {
-                _tracer.TrackTrace($"--{s.RootURL}");
+                _tracer.TrackTrace($"--BEGIN: {s.RootURL}:");
                 await StartSiteAnalysisAsync(s);
             }
         }
@@ -71,46 +64,15 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             var s = new SiteModelBuilder(base._config, base._tracer, site);
 
             var siteModel = await s.Build(100,
-                async filesDiscovered => await InsertFilesAsync(filesDiscovered),
+                async filesDiscovered => await filesDiscovered.InsertFilesAsync(_config, _stagingFilesMigrator, _tracer),
                 async updatedFiles => await UpdateFiles(updatedFiles)
             );
 
             await Task.WhenAll(_updateTasks);
-            _tracer.TrackTrace($"--{site.RootURL} finished.");
+            _tracer.TrackTrace($"--FINISHED: {site.RootURL}");
             return siteModel;
         }
-        async Task InsertFilesAsync(List<SharePointFileInfoWithList> insertedFiles)
-        {
-            using (var db = new SPOColdStorageDbContext(this._config))
-            {
-                var executionStrategy = db.Database.CreateExecutionStrategy();
-                await executionStrategy.Execute(async () =>
-           {
-               using (var trans = await db.Database.BeginTransactionAsync())
-               {
-                   var blockGuid = Guid.NewGuid();
-                   var inserted = DateTime.Now;
 
-                   // Insert staging data
-                   var files = new List<StagingTempFile>();
-                   foreach (var insertedFile in insertedFiles)
-                   {
-                       var f = new StagingTempFile(insertedFile, blockGuid, inserted);
-                       files.Add(f);
-                   }
-                   await db.StagingFiles.AddRangeAsync(files);
-                   await db.SaveChangesAsync();
-
-                   // Merge from staging to tables
-                   var inserts = stagingFilesMigrator.MigrateBlockAndCleanFromStaging(db, blockGuid);
-
-                   await trans.CommitAsync();
-               }
-           });
-
-
-            }
-        }
         Task UpdateFiles(List<DocumentSiteWithMetadata> updatedFiles)
         {
             _updateTasks.Add(Task.Run(async () =>
