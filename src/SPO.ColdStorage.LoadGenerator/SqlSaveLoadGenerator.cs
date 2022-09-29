@@ -10,15 +10,16 @@ namespace SPO.ColdStorage.LoadGenerator
         {
             var tasks = new List<Task>();
 
+            StagingFilesMigrator stagingFilesMigrator = new();
             for (int i = 0; i < 100; i++)
             {
-                tasks.Add(Insert(config, 10000));
+                await Insert(config, 1000, stagingFilesMigrator);
             }
 
             await Task.WhenAll(tasks);
         }
 
-        public static async Task Insert(Entities.Configuration.Config config, int docsToInsert)
+        public static async Task Insert(Entities.Configuration.Config config, int docsToInsert, StagingFilesMigrator stagingFilesMigrator)
         {
 
             var list = new List<SharePointFileInfoWithList>();
@@ -40,7 +41,6 @@ namespace SPO.ColdStorage.LoadGenerator
 
 
             Console.WriteLine("Saving fakes");
-            StagingFilesMigrator stagingFilesMigrator = new();
 
             await list.InsertFilesAsync(config, stagingFilesMigrator, DebugTracer.ConsoleOnlyTracer());
 
