@@ -41,16 +41,16 @@ namespace SPO.ColdStorage.Models
             }
         }
 
-        public bool AnalysisFinished 
+        public bool AnalysisFinished
         {
-            get 
+            get
             {
                 var r = new List<DocumentSiteWithMetadata>(DocsByState(SiteFileAnalysisState.AnalysisPending));
                 r.AddRange(DocsByState(SiteFileAnalysisState.AnalysisInProgress));
                 r.AddRange(DocsByState(SiteFileAnalysisState.TransientError));
                 return !r.Any();
             }
-        } 
+        }
 
 
         private List<DocumentSiteWithMetadata>? _docsWithError = null;
@@ -82,18 +82,14 @@ namespace SPO.ColdStorage.Models
 
         #endregion
 
-        Dictionary<SiteFileAnalysisState, List<DocumentSiteWithMetadata>> _docsByStateCache = new();
         public List<DocumentSiteWithMetadata> DocsByState(SiteFileAnalysisState state)
         {
-            if (!_docsByStateCache.ContainsKey(state))
-            { 
-                var results = AllFiles
-                        .Where(f => f is DocumentSiteWithMetadata && ((DocumentSiteWithMetadata)f).State == state)
-                        .Cast<DocumentSiteWithMetadata>()
-                        .ToList();
-                _docsByStateCache.Add(state, results);
-            }
-            return _docsByStateCache[state];
+            var results = AllFiles
+                    .Where(f => f is DocumentSiteWithMetadata && ((DocumentSiteWithMetadata)f).State == state)
+                    .Cast<DocumentSiteWithMetadata>()
+                    .ToList();
+
+            return results;
         }
 
         public DocumentSiteWithMetadata UpdateDocItemAndInvalidateCaches(DriveItemSharePointFileInfo updatedDocInfo, ItemAnalyticsRepsonse.AnalyticsItemActionStat accessStats, VersionStorageInfo versionStorageInfo)
@@ -141,7 +137,6 @@ namespace SPO.ColdStorage.Models
             _docLibsCache = null;
             _docsCompleted = null;
             _docsWithError = null;
-            _docsByStateCache.Clear();
         }
     }
 }

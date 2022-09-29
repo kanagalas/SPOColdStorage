@@ -112,7 +112,7 @@ Paste PowerShell object result into app manifest:
 
 Save changes to app manifest. You’ll see a certificate in the app “certificates and secrets” section if you want to verify it worked.
 
-6.	Grant application access to SharePoint API (Sites.FullControl.All – some webs can’t be read without this permission):
+6.	Grant application access to SharePoint API (Sites.Manage.All – some webs can’t be read without this permission):
 ![alt](imgs/image008.png)
 7.	Generate a client secret – used for accessing Key Vault.
 8.	Expose an API so the React application can access our own protected APIs (in “expose an API” blade).
