@@ -3,10 +3,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SPO.ColdStorage.Tests

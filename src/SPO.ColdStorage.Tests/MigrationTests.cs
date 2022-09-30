@@ -77,7 +77,7 @@ namespace SPO.ColdStorage.Tests
 
 
             // Discover file in SP with crawler
-            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
+            var crawler = new SiteListsAndLibrariesCrawler(_config!, _config!.BaseServerAddress, _tracer);
             var allResults = await crawler.CrawlList(targetList);
 
             // Check it's the right file
@@ -155,7 +155,7 @@ namespace SPO.ColdStorage.Tests
 
         async Task<BaseSharePointFileInfo?> GetFromIndex(ClientContext ctx, string fileTitle, Microsoft.SharePoint.Client.List targetList)
         {
-            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer);
+            var crawler = new SiteListsAndLibrariesCrawler(_config!, _config!.BaseServerAddress, _tracer);
             var allResults = await crawler.CrawlList(targetList);
             var discoveredFile = allResults.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
             return discoveredFile;

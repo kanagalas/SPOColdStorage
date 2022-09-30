@@ -70,11 +70,11 @@ namespace SPO.ColdStorage.Migration.Engine
 
         async Task StartSiteMigration(string siteUrl, SiteListFilterConfig siteFolderConfig)
         {
-            var ctx = await AuthUtils.GetClientContext(_config, siteUrl, _tracer);
+            var ctx = await AuthUtils.GetClientContext(_config, siteUrl, _tracer, null);
 
             _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
-            var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer, Crawler_SharePointFileFound, null);
+            var crawler = new SiteListsAndLibrariesCrawler(_config, siteUrl, _tracer, Crawler_SharePointFileFound, null);
             await crawler.StartCrawl(siteFolderConfig);
         }
 

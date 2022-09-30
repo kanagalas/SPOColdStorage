@@ -1,4 +1,6 @@
-﻿using Microsoft.SharePoint.Client;
+﻿using Microsoft.Identity.Client;
+using Microsoft.SharePoint.Client;
+using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine.Utils;
 using SPO.ColdStorage.Models;
 
@@ -9,21 +11,25 @@ namespace SPO.ColdStorage.Migration.Engine
     /// </summary>
     public class SiteListsAndLibrariesCrawler
     {
+        private readonly Config _config;
+        private readonly string _siteUrl;
+        private AuthenticationResult? _contextAuthResult = null;
+        private ClientContext? _context = null;
         #region Constructors & Privates
 
-        private readonly ClientContext _spClient;
         private readonly DebugTracer _tracer;
 
         private readonly Action? crawlComplete;
         public event Func<SharePointFileInfoWithList, Task>? _foundFileToMigrateCallback;
 
-        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer) : this(clientContext, tracer, null, null)
+        public SiteListsAndLibrariesCrawler(Config config, string siteUrl, DebugTracer tracer) : this(config, siteUrl, tracer, null, null)
         {
         }
 
-        public SiteListsAndLibrariesCrawler(ClientContext clientContext, DebugTracer tracer, Func<SharePointFileInfoWithList, Task>? foundFileToMigrateCallback, Action? crawlComplete)
+        public SiteListsAndLibrariesCrawler(Config config, string siteUrl, DebugTracer tracer, Func<SharePointFileInfoWithList, Task>? foundFileToMigrateCallback, Action? crawlComplete)
         {
-            this._spClient = clientContext;
+            _config = config;
+            _siteUrl = siteUrl;
             this._tracer = tracer;
             this.crawlComplete = crawlComplete;
             this._foundFileToMigrateCallback = foundFileToMigrateCallback;
@@ -31,12 +37,24 @@ namespace SPO.ColdStorage.Migration.Engine
 
         #endregion
 
+        async Task<ClientContext> GetContext()
+        {
+            if (_contextAuthResult == null || _contextAuthResult.ExpiresOn < DateTime.Now.AddMinutes(-5))
+            {
+                _tracer.TrackTrace($"Refreshing SPO access token...");
+                _context = await AuthUtils.GetClientContext(_config, _siteUrl, _tracer, (AuthenticationResult auth) => _contextAuthResult = auth);
+            }
+
+            return _context!;
+        }
+
         public async Task StartCrawl(SiteListFilterConfig siteFolderConfig)
         {
-            var rootWeb = _spClient.Web;
+            var spClient = await GetContext();
+            var rootWeb = spClient.Web;
             await EnsureContextWebIsLoaded();
-            _spClient.Load(rootWeb.Webs);
-            await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+            spClient.Load(rootWeb.Webs);
+            await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
             await ProcessWeb(rootWeb, siteFolderConfig);
 
@@ -50,13 +68,14 @@ namespace SPO.ColdStorage.Migration.Engine
         private async Task ProcessWeb(Web web, SiteListFilterConfig siteFolderConfig)
         {
             Console.WriteLine($"Reading web '{web.ServerRelativeUrl}'...");
-            _spClient.Load(web.Lists);
-            await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+            var spClient = await GetContext();
+            spClient.Load(web.Lists);
+            await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
             foreach (var list in web.Lists)
             {
-                _spClient.Load(list, l => l.IsSystemList);
-                await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+                spClient.Load(list, l => l.IsSystemList);
+                await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
                 // Do not search through system or hidden lists
                 if (!list.Hidden && !list.IsSystemList)
@@ -84,9 +103,10 @@ namespace SPO.ColdStorage.Migration.Engine
         }
         public async Task<List<BaseSharePointFileInfo>> CrawlList(List list, ListFolderConfig listFolderConfig)
         {
+            var spClient = await GetContext();
             await EnsureContextWebIsLoaded();
-            _spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
-            await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+            spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
+            await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
             SiteList? listModel = null;
             var results = new List<BaseSharePointFileInfo>();
@@ -103,12 +123,12 @@ namespace SPO.ColdStorage.Migration.Engine
                 camlQuery.ListItemCollectionPosition = currentPosition;
 
                 listItems = list.GetItems(camlQuery);
-                _spClient.Load(listItems, l => l.ListItemCollectionPosition);
+                spClient.Load(listItems, l => l.ListItemCollectionPosition);
 
                 if (list.BaseType == BaseType.DocumentLibrary)
                 {
                     // Load docs
-                    _spClient.Load(listItems,
+                    spClient.Load(listItems,
                                      items => items.Include(
                                         item => item.Id,
                                         item => item.FileSystemObjectType,
@@ -132,7 +152,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 else
                 {
                     // Generic list, or similar enough. Load attachments
-                    _spClient.Load(listItems,
+                    spClient.Load(listItems,
                                      items => items.Include(
                                         item => item.Id,
                                         item => item.AttachmentFiles,
@@ -147,7 +167,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
                 try
                 {
-                    await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+                    await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
                 }
                 catch (System.Net.WebException ex)
                 {
@@ -167,7 +187,7 @@ namespace SPO.ColdStorage.Migration.Engine
                         BaseSharePointFileInfo? foundFileInfo = null;
                         if (list.BaseType == BaseType.GenericList)
                         {
-                            results.AddRange(await ProcessListItemAttachments(item, listModel, listFolderConfig));
+                            results.AddRange(await ProcessListItemAttachments(item, listModel, listFolderConfig, spClient));
                         }
                         else if (list.BaseType == BaseType.DocumentLibrary)
                         {
@@ -186,7 +206,7 @@ namespace SPO.ColdStorage.Migration.Engine
                                 }
                             }
 
-                            foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig);
+                            foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig, spClient);
                         }
                         if (foundFileInfo != null)
                         {
@@ -204,12 +224,12 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process a single document library item.
         /// </summary>
-        private async Task<BaseSharePointFileInfo?> ProcessDocLibItem(ListItem docListItem, SiteList listModel, ListFolderConfig listFolderConfig)
+        private async Task<BaseSharePointFileInfo?> ProcessDocLibItem(ListItem docListItem, SiteList listModel, ListFolderConfig listFolderConfig, ClientContext spClient)
         {
             if (docListItem.FileSystemObjectType == FileSystemObjectType.File && docListItem.File.Exists)
             {
 
-                var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl, listModel);
+                var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl, listModel, spClient);
                 if (listFolderConfig.IncludeFolder(foundFileInfo))
                 {
                     if (_foundFileToMigrateCallback != null)
@@ -233,13 +253,13 @@ namespace SPO.ColdStorage.Migration.Engine
         /// <summary>
         /// Process custom list item with possibly multiple attachments
         /// </summary>
-        private async Task<List<BaseSharePointFileInfo>> ProcessListItemAttachments(ListItem item, SiteList listModel, ListFolderConfig listFolderConfig)
+        private async Task<List<BaseSharePointFileInfo>> ProcessListItemAttachments(ListItem item, SiteList listModel, ListFolderConfig listFolderConfig, ClientContext spClient)
         {
             var attachmentsResults = new List<BaseSharePointFileInfo>();
 
             foreach (var attachment in item.AttachmentFiles)
             {
-                var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl, listModel);
+                var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl, listModel, spClient);
                 if (listFolderConfig.IncludeFolder(foundFileInfo))
                 {
                     if (_foundFileToMigrateCallback != null)
@@ -262,12 +282,13 @@ namespace SPO.ColdStorage.Migration.Engine
 
         async Task EnsureContextWebIsLoaded()
         {
+            var spClient = await GetContext();
             var loaded = false;
             try
             {
                 // Test if this will blow up
-                var url = _spClient.Web.Url;
-                url = _spClient.Site.Url;
+                var url = spClient.Web.Url;
+                url = spClient.Site.Url;
                 loaded = true;
             }
             catch (PropertyOrFieldNotInitializedException)
@@ -277,13 +298,13 @@ namespace SPO.ColdStorage.Migration.Engine
 
             if (!loaded)
             {
-                _spClient.Load(_spClient.Web);
-                _spClient.Load(_spClient.Site, s => s.Url);
-                await _spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+                spClient.Load(spClient.Web);
+                spClient.Load(spClient.Site, s => s.Url);
+                await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
             }
         }
 
-        SharePointFileInfoWithList GetSharePointFileInfo(ListItem item, string url, SiteList listModel)
+        SharePointFileInfoWithList GetSharePointFileInfo(ListItem item, string url, SiteList listModel ,ClientContext _spClient)
         {
             var dir = "";
             if (item.FieldValues.ContainsKey("FileDirRef"))

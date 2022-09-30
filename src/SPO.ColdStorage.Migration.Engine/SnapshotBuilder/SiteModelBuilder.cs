@@ -77,7 +77,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                 Microsoft.SharePoint.Client.ClientContext? ctx = null;
                 try
                 {
-                    ctx = await AuthUtils.GetClientContext(_config, _site.RootURL, _tracer);
+                    ctx = await AuthUtils.GetClientContext(_config, _site.RootURL, _tracer, null);
                 }
                 catch (System.Net.WebException ex)
                 {
@@ -85,7 +85,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                     return _model;
                 }
 
-                var crawler = new SiteListsAndLibrariesCrawler(ctx, _tracer,
+                var crawler = new SiteListsAndLibrariesCrawler(_config, _site.RootURL, _tracer,
                     (SharePointFileInfoWithList foundFile) => Crawler_SharePointFileFound(foundFile, batchSize, newFilesCallback),
                     () => CrawlComplete(newFilesCallback));
 

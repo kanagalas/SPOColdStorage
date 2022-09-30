@@ -24,8 +24,11 @@ namespace SPO.ColdStorage.Migration.Engine
             return _cachedCert;
 
         }
-
         public async static Task<ClientContext> GetClientContext(string siteUrl, string tenantId, string clientId, string clientSecret, string keyVaultUrl, string baseServerAddress, DebugTracer tracer)
+        {
+            return await GetClientContext(siteUrl, tenantId, clientId, clientSecret, keyVaultUrl, baseServerAddress, tracer, null);
+        }
+        public async static Task<ClientContext> GetClientContext(string siteUrl, string tenantId, string clientId, string clientSecret, string keyVaultUrl, string baseServerAddress, DebugTracer tracer, Action<AuthenticationResult>? authResultDelegate)
         {
             if (string.IsNullOrEmpty(siteUrl))
             {
@@ -59,6 +62,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
             var app = await GetNewClientApp(tenantId, clientId, clientSecret, keyVaultUrl);
             var result = await app.AuthForSharePointOnline(baseServerAddress);
+            if (authResultDelegate != null)
+            {
+                authResultDelegate(result);
+            }
 
             var ctx = new ClientContext(siteUrl);
             ctx.ExecutingWebRequest += (s, e) =>
@@ -99,10 +106,10 @@ namespace SPO.ColdStorage.Migration.Engine
             return app;
         }
 
-        public static async Task<ClientContext> GetClientContext(Config config, string siteUrl, DebugTracer tracer)
+        public static async Task<ClientContext> GetClientContext(Config config, string siteUrl, DebugTracer tracer, Action<AuthenticationResult>? authResultDelegate)
         {
             return await GetClientContext(siteUrl, config.AzureAdConfig.TenantId!, config.AzureAdConfig.ClientID!,
-                config.AzureAdConfig.Secret!, config.KeyVaultUrl, config.BaseServerAddress, tracer);
+                config.AzureAdConfig.Secret!, config.KeyVaultUrl, config.BaseServerAddress, tracer, authResultDelegate);
         }
 
         public static async Task<IConfidentialClientApplication> GetNewClientApp(Config config)

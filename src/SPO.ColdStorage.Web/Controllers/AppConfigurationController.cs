@@ -105,7 +105,7 @@ namespace SPO.ColdStorage.Web.Controllers
             // Verify auth works with 1st item
             try
             {
-                await AuthUtils.GetClientContext(_config, targets[0].RootURL, _tracer);
+                await AuthUtils.GetClientContext(_config, targets[0].RootURL, _tracer, null);
             }
             catch (Exception ex)
             {
@@ -124,7 +124,7 @@ namespace SPO.ColdStorage.Web.Controllers
             {
                 try
                 {
-                    var siteContext = await AuthUtils.GetClientContext(_config, target.RootURL, _tracer);
+                    var siteContext = await AuthUtils.GetClientContext(_config, target.RootURL, _tracer, null);
                     siteContext.Load(siteContext.Web);
                     await siteContext.ExecuteQueryAsync();
                 }
