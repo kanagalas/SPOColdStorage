@@ -176,6 +176,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
                 // Remember position, if more than 5000 items are in the list
                 currentPosition = listItems.ListItemCollectionPosition;
+
+                // For large lists, make sure we refresh the context when the token expires.
+                spClient = await GetContext();
+
                 foreach (var item in listItems)
                 {
                     var contentTypeId = item.FieldValues["ContentTypeId"]?.ToString();
