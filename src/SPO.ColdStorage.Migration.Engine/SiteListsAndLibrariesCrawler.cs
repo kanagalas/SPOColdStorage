@@ -190,7 +190,6 @@ namespace SPO.ColdStorage.Migration.Engine
                         }
                         if (foundFileInfo != null)
                         {
-                            Console.WriteLine($"+{foundFileInfo.ServerRelativeFilePath}");
                             results.Add(foundFileInfo!);
                         }
                             
