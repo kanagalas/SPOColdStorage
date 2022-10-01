@@ -6,25 +6,19 @@ using SPO.ColdStorage.Models;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
-    
     /// <summary>
     /// Finds files in a SharePoint site collection
     /// </summary>
     public class SiteListsAndLibrariesCrawler
     {
-        class ContextRefreshInfo
-        {
-            public ClientContext Context { get; set; } = null!;
-            public bool NewContext { get; set; } = false;
-        }
+        #region Constructors & Privates
+
+        private readonly DebugTracer _tracer;
 
         private readonly Config _config;
         private readonly string _siteUrl;
         private AuthenticationResult? _contextAuthResult = null;
         private ClientContext? _context = null;
-        #region Constructors & Privates
-
-        private readonly DebugTracer _tracer;
 
         private readonly Action? crawlComplete;
         public event Func<SharePointFileInfoWithList, Task>? _foundFileToMigrateCallback;
@@ -44,23 +38,9 @@ namespace SPO.ColdStorage.Migration.Engine
 
         #endregion
 
-        async Task<ContextRefreshInfo> GetContext()
+        public async Task StartSiteCrawl(SiteListFilterConfig siteFolderConfig)
         {
-            var newContext = false;
-            if (_contextAuthResult == null || _contextAuthResult.ExpiresOn < DateTime.Now.AddMinutes(-5))
-            {
-                _tracer.TrackTrace($"Refreshing SPO access token...");
-                _context = await AuthUtils.GetClientContext(_config, _siteUrl, _tracer, (AuthenticationResult auth) => _contextAuthResult = auth);
-                await EnsureContextWebIsLoaded(_context);
-                newContext = true;
-            }
-
-            return new ContextRefreshInfo {Context = _context!, NewContext = newContext };
-        }
-
-        public async Task StartCrawl(SiteListFilterConfig siteFolderConfig)
-        {
-            var spClient = (await GetContext()).Context;
+            var spClient = await GetOrRefreshContext();
             var rootWeb = spClient.Web;
             await EnsureContextWebIsLoaded(spClient);
             spClient.Load(rootWeb.Webs);
@@ -93,7 +73,7 @@ namespace SPO.ColdStorage.Migration.Engine
                     {
                         var listCrawlConfig = siteFolderConfig.GetListFolderConfig(list.Title);
                         _tracer.TrackTrace($"Crawling '{list.Title}'...");
-                        await CrawlList(list, listCrawlConfig);
+                        await CrawlList(list.Id, listCrawlConfig);
                     }
                     else
                     {
@@ -106,19 +86,16 @@ namespace SPO.ColdStorage.Migration.Engine
                 }
             }
         }
-        public async Task<List<BaseSharePointFileInfo>> CrawlList(List list)
+        public async Task<List<BaseSharePointFileInfo>> CrawlList(Guid listId)
         {
-            return await CrawlList(list, new ListFolderConfig());
+            return await CrawlList(listId, new ListFolderConfig());
         }
-        public async Task<List<BaseSharePointFileInfo>> CrawlList(List list, ListFolderConfig listFolderConfig)
+        public async Task<List<BaseSharePointFileInfo>> CrawlList(Guid listId, ListFolderConfig listFolderConfig)
         {
-            var spClient = (await GetContext()).Context;
-            spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
-            await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
-
             SiteList? listModel = null;
             var results = new List<BaseSharePointFileInfo>();
 
+            // List get-all query
             var camlQuery = new CamlQuery();
             camlQuery.ViewXml = "<View Scope=\"RecursiveAll\"><Query>" +
                 "<OrderBy><FieldRef Name='ID' Ascending='TRUE'/></OrderBy></Query><RowLimit Paged=\"TRUE\">5000</RowLimit></View>";
@@ -131,16 +108,21 @@ namespace SPO.ColdStorage.Migration.Engine
                 camlQuery.ListItemCollectionPosition = currentPosition;
 
                 // For large lists, make sure we refresh the context when the token expires.
-                var contextInfo = await GetContext();
-                spClient = contextInfo.Context;
+                var spClientList = await GetOrRefreshContext();
 
+                // Load list definition
+                var list = spClientList.Web.Lists.GetById(listId);
+                spClientList.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder, list => list.Title);
+                await spClientList.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+
+                // List items
                 listItems = list.GetItems(camlQuery);
-                spClient.Load(listItems, l => l.ListItemCollectionPosition);
+                spClientList.Load(listItems, l => l.ListItemCollectionPosition);
 
                 if (list.BaseType == BaseType.DocumentLibrary)
                 {
                     // Load docs
-                    spClient.Load(listItems,
+                    spClientList.Load(listItems,
                                      items => items.Include(
                                         item => item.Id,
                                         item => item.FileSystemObjectType,
@@ -164,7 +146,7 @@ namespace SPO.ColdStorage.Migration.Engine
                 else
                 {
                     // Generic list, or similar enough. Load attachments
-                    spClient.Load(listItems,
+                    spClientList.Load(listItems,
                                      items => items.Include(
                                         item => item.Id,
                                         item => item.AttachmentFiles,
@@ -179,7 +161,7 @@ namespace SPO.ColdStorage.Migration.Engine
 
                 try
                 {
-                    await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+                    await spClientList.ExecuteQueryAsyncWithThrottleRetries(_tracer);
                 }
                 catch (System.Net.WebException ex)
                 {
@@ -201,7 +183,7 @@ namespace SPO.ColdStorage.Migration.Engine
                         BaseSharePointFileInfo? foundFileInfo = null;
                         if (list.BaseType == BaseType.GenericList)
                         {
-                            results.AddRange(await ProcessListItemAttachments(item, listModel, listFolderConfig, spClient));
+                            results.AddRange(await ProcessListItemAttachments(item, listModel, listFolderConfig, spClientList));
                         }
                         else if (list.BaseType == BaseType.DocumentLibrary)
                         {
@@ -220,7 +202,7 @@ namespace SPO.ColdStorage.Migration.Engine
                                 }
                             }
 
-                            foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig, spClient);
+                            foundFileInfo = await ProcessDocLibItem(item, listModel, listFolderConfig, spClientList);
                         }
                         if (foundFileInfo != null)
                         {
@@ -395,6 +377,18 @@ namespace SPO.ColdStorage.Migration.Engine
             {
                 throw new ArgumentOutOfRangeException(nameof(item), "Can't find modified column");
             }
+        }
+
+        async Task<ClientContext> GetOrRefreshContext()
+        {
+            if (_contextAuthResult == null || _contextAuthResult.ExpiresOn < DateTime.Now.AddMinutes(-5))
+            {
+                _tracer.TrackTrace($"Refreshing SPO access token...");
+                _context = await AuthUtils.GetClientContext(_config, _siteUrl, _tracer, (AuthenticationResult auth) => _contextAuthResult = auth);
+                await EnsureContextWebIsLoaded(_context);
+            }
+
+            return _context!;
         }
     }
 }

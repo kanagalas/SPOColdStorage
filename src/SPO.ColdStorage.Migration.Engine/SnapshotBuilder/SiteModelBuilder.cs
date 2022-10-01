@@ -95,7 +95,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                 // Run background tasks
                 _ = Task.Run(() => StartStatsUpdates()).ConfigureAwait(false);
 
-                await crawler.StartCrawl(_siteFilterConfig);
+                await crawler.StartSiteCrawl(_siteFilterConfig);
 
                 _tracer.TrackTrace($"STAGE 1/2: Finished crawling site files. Waiting for background update tasks to finish...");
                 await Task.WhenAll(_backgroundMetaTasksAnalytics);

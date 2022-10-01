@@ -75,7 +75,7 @@ namespace SPO.ColdStorage.Migration.Engine
             _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
             var crawler = new SiteListsAndLibrariesCrawler(_config, siteUrl, _tracer, Crawler_SharePointFileFound, null);
-            await crawler.StartCrawl(siteFolderConfig);
+            await crawler.StartSiteCrawl(siteFolderConfig);
         }
 
         /// <summary>
