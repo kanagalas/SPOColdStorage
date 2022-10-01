@@ -6,11 +6,18 @@ using SPO.ColdStorage.Models;
 
 namespace SPO.ColdStorage.Migration.Engine
 {
+    
     /// <summary>
     /// Finds files in a SharePoint site collection
     /// </summary>
     public class SiteListsAndLibrariesCrawler
     {
+        class ContextRefreshInfo
+        {
+            public ClientContext Context { get; set; } = null!;
+            public bool NewContext { get; set; } = false;
+        }
+
         private readonly Config _config;
         private readonly string _siteUrl;
         private AuthenticationResult? _contextAuthResult = null;
@@ -37,38 +44,40 @@ namespace SPO.ColdStorage.Migration.Engine
 
         #endregion
 
-        async Task<ClientContext> GetContext()
+        async Task<ContextRefreshInfo> GetContext()
         {
+            var newContext = false;
             if (_contextAuthResult == null || _contextAuthResult.ExpiresOn < DateTime.Now.AddMinutes(-5))
             {
                 _tracer.TrackTrace($"Refreshing SPO access token...");
                 _context = await AuthUtils.GetClientContext(_config, _siteUrl, _tracer, (AuthenticationResult auth) => _contextAuthResult = auth);
+                await EnsureContextWebIsLoaded(_context);
+                newContext = true;
             }
 
-            return _context!;
+            return new ContextRefreshInfo {Context = _context!, NewContext = newContext };
         }
 
         public async Task StartCrawl(SiteListFilterConfig siteFolderConfig)
         {
-            var spClient = await GetContext();
+            var spClient = (await GetContext()).Context;
             var rootWeb = spClient.Web;
-            await EnsureContextWebIsLoaded();
+            await EnsureContextWebIsLoaded(spClient);
             spClient.Load(rootWeb.Webs);
             await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
-            await ProcessWeb(rootWeb, siteFolderConfig);
+            await ProcessWeb(rootWeb, siteFolderConfig, spClient);
 
             foreach (var subSweb in rootWeb.Webs)
             {
-                await ProcessWeb(subSweb, siteFolderConfig);
+                await ProcessWeb(subSweb, siteFolderConfig, spClient);
             }
             crawlComplete?.Invoke();
         }
 
-        private async Task ProcessWeb(Web web, SiteListFilterConfig siteFolderConfig)
+        private async Task ProcessWeb(Web web, SiteListFilterConfig siteFolderConfig, ClientContext spClient)
         {
             Console.WriteLine($"Reading web '{web.ServerRelativeUrl}'...");
-            var spClient = await GetContext();
             spClient.Load(web.Lists);
             await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
@@ -103,8 +112,7 @@ namespace SPO.ColdStorage.Migration.Engine
         }
         public async Task<List<BaseSharePointFileInfo>> CrawlList(List list, ListFolderConfig listFolderConfig)
         {
-            var spClient = await GetContext();
-            await EnsureContextWebIsLoaded();
+            var spClient = (await GetContext()).Context;
             spClient.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder);
             await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
 
@@ -121,6 +129,10 @@ namespace SPO.ColdStorage.Migration.Engine
             do
             {
                 camlQuery.ListItemCollectionPosition = currentPosition;
+
+                // For large lists, make sure we refresh the context when the token expires.
+                var contextInfo = await GetContext();
+                spClient = contextInfo.Context;
 
                 listItems = list.GetItems(camlQuery);
                 spClient.Load(listItems, l => l.ListItemCollectionPosition);
@@ -177,14 +189,12 @@ namespace SPO.ColdStorage.Migration.Engine
                 // Remember position, if more than 5000 items are in the list
                 currentPosition = listItems.ListItemCollectionPosition;
 
-                // For large lists, make sure we refresh the context when the token expires.
-                spClient = await GetContext();
-
                 foreach (var item in listItems)
                 {
                     var contentTypeId = item.FieldValues["ContentTypeId"]?.ToString();
                     var itemIsFolder = contentTypeId != null && contentTypeId.StartsWith("0x012");
                     var itemUrl = item.FieldValues["FileRef"]?.ToString();
+
 
                     if (!itemIsFolder)
                     {
@@ -283,10 +293,8 @@ namespace SPO.ColdStorage.Migration.Engine
             return attachmentsResults;
         }
 
-
-        async Task EnsureContextWebIsLoaded()
+        async Task EnsureContextWebIsLoaded(ClientContext spClient)
         {
-            var spClient = await GetContext();
             var loaded = false;
             try
             {
