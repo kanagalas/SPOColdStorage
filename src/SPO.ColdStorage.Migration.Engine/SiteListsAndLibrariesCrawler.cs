@@ -63,27 +63,40 @@ namespace SPO.ColdStorage.Migration.Engine
 
             foreach (var list in web.Lists)
             {
-                spClient.Load(list, l => l.IsSystemList);
-                await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
-
-                // Do not search through system or hidden lists
-                if (!list.Hidden && !list.IsSystemList)
+                var listReadSuccess = false;
+                try
                 {
-                    if (siteFolderConfig.IncludeListInMigration(list.Title))
+                    spClient.Load(list, l => l.IsSystemList);
+                    await spClient.ExecuteQueryAsyncWithThrottleRetries(_tracer);
+                    listReadSuccess = true;
+                }
+                catch (System.Net.WebException ex)
+                {
+                    _tracer.TrackTrace($"Got exception '{ex.Message}' loading data for list ID '{list.Id}' - not configured to analyse.");
+                }
+
+                if (listReadSuccess)
+                {
+                    // Do not search through system or hidden lists
+                    if (!list.Hidden && !list.IsSystemList)
                     {
-                        var listCrawlConfig = siteFolderConfig.GetListFolderConfig(list.Title);
-                        _tracer.TrackTrace($"Crawling '{list.Title}'...");
-                        await CrawlList(list.Id, listCrawlConfig);
+                        if (siteFolderConfig.IncludeListInMigration(list.Title))
+                        {
+                            var listCrawlConfig = siteFolderConfig.GetListFolderConfig(list.Title);
+                            _tracer.TrackTrace($"Crawling '{list.Title}'...");
+                            await CrawlList(list.Id, listCrawlConfig);
+                        }
+                        else
+                        {
+                            _tracer.TrackTrace($"Ignoring '{list.Title}' - not configured to analyse.");
+                        }
                     }
                     else
                     {
-                        _tracer.TrackTrace($"Ignoring '{list.Title}' - not configured to analyse.");
+                        _tracer.TrackTrace($"Ignoring system/hidden list '{list.Title}'.");
                     }
                 }
-                else
-                {
-                    _tracer.TrackTrace($"Ignoring system/hidden list '{list.Title}'.");
-                }
+                
             }
         }
         public async Task<List<BaseSharePointFileInfo>> CrawlList(Guid listId)
