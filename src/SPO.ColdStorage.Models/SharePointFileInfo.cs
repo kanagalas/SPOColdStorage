@@ -126,6 +126,7 @@ namespace SPO.ColdStorage.Models
         /// Parent list
         /// </summary>
         public SiteList List { get; set; } = new SiteList();
+
     }
 
     public class DriveItemSharePointFileInfo : SharePointFileInfoWithList

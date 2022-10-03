@@ -51,6 +51,8 @@ namespace SPO.ColdStorage.Tests
             const int INSERTS = 100;
             for (int i = 0; i < INSERTS; i++)
             {
+                var siteUrl = "/site" + i;
+                var webUrl = siteUrl + "/web" + i;
                 list.Add(new DocumentSiteWithMetadata
                 {
                     AccessCount = i,
@@ -59,7 +61,11 @@ namespace SPO.ColdStorage.Tests
                     DriveId = DateTime.Now.Ticks.ToString(),
                     FileSize = i,
                     GraphItemId = DateTime.Now.Ticks.ToString(),
-                    VersionCount = i
+                    VersionCount = i,
+                    SiteUrl = siteUrl,
+                    WebUrl = webUrl,
+                    ServerRelativeFilePath = webUrl + "/file.aspx",
+                    LastModified = DateTime.Now
                 });
             }
 

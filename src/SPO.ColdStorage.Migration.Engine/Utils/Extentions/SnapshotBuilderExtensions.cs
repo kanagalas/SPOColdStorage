@@ -34,8 +34,15 @@ namespace SPO.ColdStorage.Migration.Engine.Utils.Extentions
                                 var stagingFiles = new List<StagingTempFile>();
                                 foreach (var insertedFile in files)
                                 {
-                                    var f = new StagingTempFile(insertedFile, blockGuid, inserted);
-                                    stagingFiles.Add(f);
+                                    if (insertedFile.IsValidInfo)
+                                    {
+                                        var f = new StagingTempFile(insertedFile, blockGuid, inserted);
+                                        stagingFiles.Add(f);
+                                    }
+                                    else
+                                    {
+                                        tracer.TrackTrace($"Warning: found invalid file '{insertedFile.FullSharePointUrl}'. Ignoring", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Warning);
+                                    }
                                 }
                                 await db.StagingFiles.AddRangeAsync(stagingFiles);
                                 await db.SaveChangesAsync();
