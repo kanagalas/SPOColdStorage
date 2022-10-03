@@ -14,7 +14,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
         /// <summary>
         /// Migrate from staging to real tables a specific block ID (guid). Staging cleaned after migrate.
         /// </summary>
-        public async Task<int> MigrateBlockAndCleanFromStaging(SPOColdStorageDbContext context, Guid blockGuid)
+        public async Task MigrateBlockAndCleanFromStaging(SPOColdStorageDbContext context, Guid blockGuid)
         {
             if (string.IsNullOrEmpty(_sqlTemplate))
             {
@@ -22,7 +22,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             }
             var blockSql = _sqlTemplate.Replace("--[blockset]--", $"SET @blockGuid='{blockGuid}';");
 
-            return await context.Database.ExecuteSqlRawAsync(blockSql);
+            await context.Database.ExecuteSqlRawAsync(blockSql);
         }
 
         public async Task CleanStagingAll(SPOColdStorageDbContext context)

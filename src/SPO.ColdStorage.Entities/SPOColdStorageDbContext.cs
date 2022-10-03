@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using SPO.ColdStorage.Entities.Configuration;
@@ -22,6 +23,10 @@ namespace SPO.ColdStorage.Entities
         {
             this._config = config;
             SetCommandTimeout();
+        }
+
+        public SPOColdStorageDbContext(SqlConnection con) : base()
+        {
         }
 
         void SetCommandTimeout()

@@ -25,6 +25,8 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
         private List<SharePointFileInfoWithList> _fileFoundBuffer = new();
         private List<Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>>> _backgroundMetaTasksAnalytics = new();
         private List<Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>>> _backgroundMetaTasksVersionHistory = new();
+
+
         public SiteModelBuilder(Config config, DebugTracer debugTracer, TargetMigrationSite site) : base(config, debugTracer)
         {
             this._site = site;
@@ -61,6 +63,16 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
         #endregion
 
+        /// <summary>
+        /// Background tasks getting item analytics
+        /// </summary>
+        public List<Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>>> BackgroundMetaTasksAnalytics { get => _backgroundMetaTasksAnalytics; }
+
+        /// <summary>
+        /// Background tasks reading item history
+        /// </summary>
+        public List<Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>>> BackgroundMetaTasksVersionHistory { get => _backgroundMetaTasksVersionHistory; }
+
         public async Task<SiteSnapshotModel> Build()
         {
             return await Build(100, null, null);
@@ -93,12 +105,13 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                 _model.Started = DateTime.Now;
 
                 // Run background tasks
-                _ = Task.Run(() => StartStatsUpdates()).ConfigureAwait(false);
+                _ = Task.Run(() => StartAnalysisStatsUpdates()).ConfigureAwait(false);
 
                 await crawler.StartSiteCrawl(_siteFilterConfig);
 
                 _tracer.TrackTrace($"STAGE 1/2: Finished crawling site files. Waiting for background update tasks to finish...");
-                await Task.WhenAll(_backgroundMetaTasksAnalytics);
+                await Task.WhenAll(BackgroundMetaTasksAnalytics);
+                await Task.WhenAll(BackgroundMetaTasksVersionHistory);
 
                 var filesToGetAnalysisFor = true;
                 while (filesToGetAnalysisFor)
@@ -124,7 +137,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                     // Check again if anything to do
                     filesToGetAnalysisFor = !_model.AnalysisFinished;
                 }
-                StopStatsUpdates();
+                StopAnalysisStatsUpdates();
                 _model.InvalidateCaches();
                 _model.Finished = DateTime.Now;
                 var ts = _model.Finished.Value.Subtract(_model.Started);
@@ -137,7 +150,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
         #region Stats Update
 
-        private void StopStatsUpdates()
+        private void StopAnalysisStatsUpdates()
         {
             lock (this)
             {
@@ -145,7 +158,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             }
         }
 
-        async Task StartStatsUpdates()
+        async Task StartAnalysisStatsUpdates()
         {
             _showStats = true;
             while (_showStats)
@@ -157,7 +170,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                             $"{_httpClient.CompletedCalls.ToString("N0")} calls completed; {_httpClient.ThrottledCalls.ToString("N0")} throttled (total); {_httpClient.ConcurrentCalls} currently active");
 
                 }
-                await Task.Delay(5000);
+                await Task.Delay(TimeSpan.FromMinutes(1));
             }
         }
 
@@ -209,8 +222,8 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             // Update global tasks
             lock (this)
             {
-                _backgroundMetaTasksAnalytics.AddRange(backgroundAnalyticsTasksThisChunk);
-                _backgroundMetaTasksVersionHistory.AddRange(backgroundVersionTasksThisChunk);
+                BackgroundMetaTasksAnalytics.AddRange(backgroundAnalyticsTasksThisChunk);
+                BackgroundMetaTasksVersionHistory.AddRange(backgroundVersionTasksThisChunk);
             }
 
             // Compile analytics results
@@ -258,19 +271,17 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             filesUpdatedCallback?.Invoke(updatedFiles);
         }
 
-        private void CrawlComplete(Action<List<SharePointFileInfoWithList>>? newFilesCallback)
+        private void CrawlComplete(Action<List<SharePointFileInfoWithList>>? remainderFilesCallback)
         {
             // Handle remaining files
-            if (newFilesCallback != null)
+            if (remainderFilesCallback != null)
             {
-                newFilesCallback.Invoke(_fileFoundBuffer);
+                remainderFilesCallback.Invoke(_fileFoundBuffer);
             }
 
             _fileFoundBuffer.Clear();
-
         }
 
-        int c = 0;
         private Task Crawler_SharePointFileFound(SharePointFileInfoWithList foundFile, int batchSize, Action<List<SharePointFileInfoWithList>>? newFilesCallback)
         {
             SharePointFileInfoWithList? newFile = null;
@@ -291,7 +302,6 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             // Add new found files to model & event buffer
             lock (this)
             {
-                c++;
                 _fileFoundBuffer.Add(newFile);
                 _model.AddFile(newFile, foundFile.List);
 

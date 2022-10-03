@@ -3,13 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Entities.DBEntities;
+using SPO.ColdStorage.Migration.Engine.SnapshotBuilder;
 using SPO.ColdStorage.Models;
 
-namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
+namespace SPO.ColdStorage.Migration.Engine.Utils.Extentions
 {
-    public static class Extensions
+    public static class SnapshotBuilderExtensions
     {
-        private static SemaphoreSlim ss = new(0, 1); 
+        private static SemaphoreSlim ss = new(1, 1);
         public static async Task InsertFilesAsync(this List<SharePointFileInfoWithList> files, Config config, StagingFilesMigrator stagingFilesMigrator, DebugTracer tracer)
         {
             await ss.WaitAsync();
@@ -29,27 +30,18 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                                 var blockGuid = Guid.NewGuid();
                                 var inserted = DateTime.Now;
 
-                            // Insert staging data
+                                // Insert staging data
                                 var stagingFiles = new List<StagingTempFile>();
-                                int i = 0;
                                 foreach (var insertedFile in files)
                                 {
                                     var f = new StagingTempFile(insertedFile, blockGuid, inserted);
                                     stagingFiles.Add(f);
-
-#if DEBUG
-                                    if (i > 0 && i % 1000 == 0)
-                                    {
-                                        Console.WriteLine($"{i.ToString("N0")}/{files.Count.ToString("N0")}");
-                                    }
-#endif
-                                    i++;
                                 }
                                 await db.StagingFiles.AddRangeAsync(stagingFiles);
                                 await db.SaveChangesAsync();
 
-                            // Merge from staging to tables
-                                var inserts = stagingFilesMigrator.MigrateBlockAndCleanFromStaging(db, blockGuid);
+                                // Merge from staging to tables
+                                await stagingFilesMigrator.MigrateBlockAndCleanFromStaging(db, blockGuid);
 
                                 await trans.CommitAsync();
                             }
@@ -59,7 +51,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                     catch (SqlException ex)
                     {
                         tracer.TrackException(ex);
-                        tracer.TrackTrace($"Got fatal SQL error saving file info to SQL: {ex.Message}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Critical);
+                        tracer.TrackTrace($"Got fatal SQL error saving file info block to SQL: {ex.Message}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Critical);
                     }
                 }
             }

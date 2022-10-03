@@ -1,5 +1,4 @@
-﻿using Microsoft.Graph;
-using SPO.ColdStorage.Migration.Engine.Utils.Http;
+﻿using SPO.ColdStorage.Migration.Engine.Utils.Http;
 using SPO.ColdStorage.Models;
 using System.Text.Json;
 
@@ -48,7 +47,12 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
                         fileToUpdate.State = SiteFileAnalysisState.FatalError;
                     }
                     tracer.TrackException(ex);
-                    tracer.TrackTrace($"Got exception {ex.Message} getting analytics data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                    tracer.TrackTrace($"Got HTTP exception {ex.Message} getting analytics data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                }
+                catch (Exception ex)
+                {
+                    tracer.TrackException(ex);
+                    tracer.TrackTrace($"Got general exception {ex.Message} getting analytics data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                 }
             }
             return fileSuccessResults;
@@ -94,7 +98,12 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
                         fileToUpdate.State = SiteFileAnalysisState.FatalError;
                     }
                     tracer.TrackException(ex);
-                    tracer.TrackTrace($"Got exception {ex.Message} getting version data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                    tracer.TrackTrace($"Got HTTP xception {ex.Message} getting version data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                }
+                catch (Exception ex)
+                {
+                    tracer.TrackException(ex);
+                    tracer.TrackTrace($"Got general exception {ex.Message} getting version data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                 }
             }
             return fileSuccessResults;

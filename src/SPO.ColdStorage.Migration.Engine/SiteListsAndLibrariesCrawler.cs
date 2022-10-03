@@ -21,19 +21,19 @@ namespace SPO.ColdStorage.Migration.Engine
         private ClientContext? _context = null;
 
         private readonly Action? crawlComplete;
-        public event Func<SharePointFileInfoWithList, Task>? _foundFileToMigrateCallback;
+        public event Func<SharePointFileInfoWithList, Task>? _foundFile;
 
         public SiteListsAndLibrariesCrawler(Config config, string siteUrl, DebugTracer tracer) : this(config, siteUrl, tracer, null, null)
         {
         }
 
-        public SiteListsAndLibrariesCrawler(Config config, string siteUrl, DebugTracer tracer, Func<SharePointFileInfoWithList, Task>? foundFileToMigrateCallback, Action? crawlComplete)
+        public SiteListsAndLibrariesCrawler(Config config, string siteUrl, DebugTracer tracer, Func<SharePointFileInfoWithList, Task>? foundFileCallback, Action? crawlComplete)
         {
             _config = config;
             _siteUrl = siteUrl;
             this._tracer = tracer;
             this.crawlComplete = crawlComplete;
-            this._foundFileToMigrateCallback = foundFileToMigrateCallback;
+            this._foundFile = foundFileCallback;
         }
 
         #endregion
@@ -241,9 +241,9 @@ namespace SPO.ColdStorage.Migration.Engine
                 var foundFileInfo = GetSharePointFileInfo(docListItem, docListItem.File.ServerRelativeUrl, listModel, spClient);
                 if (listFolderConfig.IncludeFolder(foundFileInfo))
                 {
-                    if (_foundFileToMigrateCallback != null)
+                    if (_foundFile != null)
                     {
-                        await this._foundFileToMigrateCallback(foundFileInfo);
+                        await this._foundFile(foundFileInfo);
                     }
                 }
                 else
@@ -271,9 +271,9 @@ namespace SPO.ColdStorage.Migration.Engine
                 var foundFileInfo = GetSharePointFileInfo(item, attachment.ServerRelativeUrl, listModel, spClient);
                 if (listFolderConfig.IncludeFolder(foundFileInfo))
                 {
-                    if (_foundFileToMigrateCallback != null)
+                    if (_foundFile != null)
                     {
-                        await this._foundFileToMigrateCallback(foundFileInfo);
+                        await this._foundFile(foundFileInfo);
                     }
                     attachmentsResults.Add(foundFileInfo);
                 }

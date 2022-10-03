@@ -1,5 +1,10 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SPO.ColdStorage.Entities;
+using SPO.ColdStorage.Entities.Configuration;
+using SPO.ColdStorage.Migration.Engine;
 using SPO.ColdStorage.Migration.Engine.SnapshotBuilder;
+using SPO.ColdStorage.Migration.Engine.Utils.Extentions;
 using SPO.ColdStorage.Models;
 using System;
 using System.Collections.Generic;
@@ -37,29 +42,36 @@ namespace SPO.ColdStorage.Tests
 
         }
 
-        //[TestMethod]
-        //public async Task ImportTests()
-        //{
-        //    var m = new SiteSnapshotModel();
-        //    var l = new DocLib();
-        //    m.Lists.Add(l);
+        [TestMethod]
+        public async Task SnapshotBuilderExtensionsTests()
+        {
+            var list = new List<SharePointFileInfoWithList>();
+            var spList = new SiteList() { ServerRelativeUrl = $"/list{DateTime.Now.Ticks}" };
 
-        //    var builder = new SiteModelBuilder(_config, _tracer, );
+            const int INSERTS = 100;
+            for (int i = 0; i < INSERTS; i++)
+            {
+                list.Add(new DocumentSiteWithMetadata
+                {
+                    AccessCount = i,
+                    Author = $"Author {i}",
+                    List = spList,
+                    DriveId = DateTime.Now.Ticks.ToString(),
+                    FileSize = i,
+                    GraphItemId = DateTime.Now.Ticks.ToString(),
+                    VersionCount = i
+                });
+            }
 
-        //    for (int i = 0; i < 100; i++)
-        //    {
-        //        l.Files.Add(
-        //            new BaseSharePointFileInfo
-        //            {
-        //                Author = $"User {i}",
-        //                LastModified = DateTime.Now,
-        //                ServerRelativeFilePath = $"/site1/File{i}",
-        //                SiteUrl = "https://unittesting.sharepoint.com/sites/MigrationHost",
-        //                WebUrl = "https://unittesting.sharepoint.com/sites/MigrationHost/subsite"
-        //            });
-        //    }
+            using (var db = new SPOColdStorageDbContext(_config!))
+            {
+                var preInsert = await db.Files.CountAsync();
+                await list.InsertFilesAsync(_config!, new StagingFilesMigrator(), DebugTracer.ConsoleOnlyTracer());
+                var postInsert = await db.Files.CountAsync();
 
-        //    await m.bui
-        //}
+                // Make sure we've actually inserted
+                Assert.IsTrue(postInsert == preInsert + INSERTS);
+            }
+        }
     }
 }
