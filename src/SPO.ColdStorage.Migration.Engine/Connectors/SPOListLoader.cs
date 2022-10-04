@@ -6,6 +6,7 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
 {
     public class SPOListLoader : BaseChildLoader, IListLoader<ListItemCollectionPosition>
     {
+        private List? _listDef = null;
         public SPOListLoader(List list, BaseSharePointConnector baseSharePointConnector) : base(baseSharePointConnector)
         {
             this.ListId = list.Id;
@@ -31,18 +32,22 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
             camlQuery.ListItemCollectionPosition = position;
 
             // For large lists, make sure we refresh the context when the token expires.
-            var spClientList = await Parent.TokenManager.GetOrRefreshContext();
+            var spClientList = await Parent.TokenManager.GetOrRefreshContext(() => _listDef = null);
 
             // Load list definition
-            var list = spClientList.Web.Lists.GetById(this.ListId);
-            spClientList.Load(list, l => l.BaseType, l => l.ItemCount, l => l.RootFolder, list => list.Title);
-            await spClientList.ExecuteQueryAsyncWithThrottleRetries(Parent.Tracer);
+            if (_listDef == null)
+            {
+                _listDef = spClientList.Web.Lists.GetById(this.ListId);
+                spClientList.Load(_listDef, l => l.BaseType, l => l.ItemCount, l => l.RootFolder, list => list.Title);
+                await spClientList.ExecuteQueryAsyncWithThrottleRetries(Parent.Tracer);
+            }
+            
 
             // List items
-            listItems = list.GetItems(camlQuery);
+            listItems = _listDef.GetItems(camlQuery);
             spClientList.Load(listItems, l => l.ListItemCollectionPosition);
 
-            if (list.BaseType == BaseType.DocumentLibrary)
+            if (_listDef.BaseType == BaseType.DocumentLibrary)
             {
                 // Load docs
                 spClientList.Load(listItems,
@@ -62,8 +67,8 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
                 // Set drive ID when 1st results come back
                 listModel = new DocLib()
                 {
-                    Title = list.Title,
-                    ServerRelativeUrl = list.RootFolder.ServerRelativeUrl
+                    Title = _listDef.Title,
+                    ServerRelativeUrl = _listDef.RootFolder.ServerRelativeUrl
                 };
             }
             else
@@ -79,7 +84,7 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
                                     item => item.File.ServerRelativeUrl
                                 )
                             );
-                listModel = new SiteList() { Title = list.Title, ServerRelativeUrl = list.RootFolder.ServerRelativeUrl };
+                listModel = new SiteList() { Title = _listDef.Title, ServerRelativeUrl = _listDef.RootFolder.ServerRelativeUrl };
             }
 
             try
@@ -88,7 +93,8 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
             }
             catch (System.Net.WebException ex)
             {
-                Console.WriteLine($"Got error reading list: {ex.Message}.");
+                Parent.Tracer.TrackException(ex);
+                Parent.Tracer.TrackTrace($"Got error reading list: {ex.Message}.");
             }
 
             // Remember position, if more than 5000 items are in the list
@@ -103,11 +109,11 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
                 if (!itemIsFolder)
                 {
                     SharePointFileInfoWithList? foundFileInfo = null;
-                    if (list.BaseType == BaseType.GenericList)
+                    if (_listDef.BaseType == BaseType.GenericList)
                     {
                         pageResults.FilesFound.AddRange(ProcessListItemAttachments(item, listModel, spClientList));
                     }
-                    else if (list.BaseType == BaseType.DocumentLibrary)
+                    else if (_listDef.BaseType == BaseType.DocumentLibrary)
                     {
                         // We might be able get the drive Id from the actual list, but not sure how...get it from 1st item instead
                         var docLib = (DocLib)listModel;
@@ -119,7 +125,7 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
                             }
                             catch (ServerObjectNullReferenceException)
                             {
-                                Parent.Tracer.TrackTrace($"WARNING: Couldn't get Drive info for list {list.Title} on item {itemUrl}. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
+                                Parent.Tracer.TrackTrace($"WARNING: Couldn't get Drive info for list {_listDef.Title} on item {itemUrl}. Ignoring.", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                                 break;
                             }
                         }

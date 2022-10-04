@@ -56,4 +56,4 @@ insert into files(
 	where duplicates.url is null and
 	imports.ImportBlockId = @blockGuid
 
---delete from [StagingFiles] where ImportBlockId = @blockGuid
+delete from [StagingFiles] where ImportBlockId = @blockGuid
