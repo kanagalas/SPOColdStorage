@@ -1,12 +1,10 @@
 using Azure.Identity;
 using Azure.Storage.Blobs;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Graph;
 using Microsoft.SharePoint.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SPO.ColdStorage.Entities;
-using SPO.ColdStorage.Entities.Configuration;
 using SPO.ColdStorage.Migration.Engine;
+using SPO.ColdStorage.Migration.Engine.Connectors;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Migration.Engine.Utils;
 using SPO.ColdStorage.Migration.Engine.Utils.Http;
@@ -71,17 +69,20 @@ namespace SPO.ColdStorage.Tests
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");
+            ctx.Load(targetList, t => t.Id, t => t.Title);
+            await ctx.ExecuteQueryAsync();
 
             var fileTitle = $"unit-test file {DateTime.Now.Ticks}.txt";
             await targetList.SaveFile(ctx, fileTitle, System.Text.Encoding.UTF8.GetBytes(FILE_CONTENTS));
 
 
             // Discover file in SP with crawler
-            var crawler = new SiteListsAndLibrariesCrawler(_config!, _config!.BaseServerAddress, _tracer);
-            var allResults = await crawler.CrawlList(targetList.Id);
+            var spConnector = new SPOSiteCollectionLoader(_config, _config!.DevConfig.DefaultSharePointSite, _tracer);
+            var crawler = new SiteListsAndLibrariesCrawler<ListItemCollectionPosition>(spConnector, _tracer);
+            var allResults = await crawler.CrawlList(new SPOListLoader(targetList, spConnector), new ListFolderConfig(), null);
 
             // Check it's the right file
-            var discoveredFile = allResults.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
+            var discoveredFile = allResults.FilesFound.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
             Assert.IsNotNull(discoveredFile);
 
             // Migrate the file to az blob
@@ -116,11 +117,13 @@ namespace SPO.ColdStorage.Tests
 
             // Upload a test file to SP
             var targetList = ctx.Web.Lists.GetByTitle("Documents");
+            ctx.Load(targetList, t => t.Id, t => t.Title);
+
             var fileTitle = $"unit-test file {DateTime.Now.Ticks}.txt";
             await targetList.SaveFile(ctx, fileTitle, System.Text.Encoding.UTF8.GetBytes(FILE_CONTENTS));
 
             // Prepare for file migration
-            var discoveredFile = await GetFromIndex(ctx, fileTitle, targetList);
+            var discoveredFile = await GetFromIndex(fileTitle, targetList);
             var blobServiceClient = new BlobServiceClient(_config.ConnectionStrings.Storage);
             var containerClient = blobServiceClient.GetBlobContainerClient(_config.BlobContainerName);
 
@@ -138,7 +141,7 @@ namespace SPO.ColdStorage.Tests
 
             // Update file with new content and recrawl
             await targetList.SaveFile(ctx, fileTitle, System.Text.Encoding.UTF8.GetBytes(FILE_CONTENTS + " + extra data"));
-            discoveredFile = await GetFromIndex(ctx, fileTitle, targetList);
+            discoveredFile = await GetFromIndex(fileTitle, targetList);
 
             // Now the file's been updated, it should need a new migration
             var needsMigratingPostEdit = await migrator.DoesSharePointFileNeedMigrating(discoveredFile!, containerClient);
@@ -153,11 +156,13 @@ namespace SPO.ColdStorage.Tests
             Assert.IsFalse(needsMigratingPostMigration);
         }
 
-        async Task<BaseSharePointFileInfo?> GetFromIndex(ClientContext ctx, string fileTitle, Microsoft.SharePoint.Client.List targetList)
+        async Task<BaseSharePointFileInfo?> GetFromIndex(string fileTitle, Microsoft.SharePoint.Client.List targetList)
         {
-            var crawler = new SiteListsAndLibrariesCrawler(_config!, _config!.BaseServerAddress, _tracer);
-            var allResults = await crawler.CrawlList(targetList.Id);
-            var discoveredFile = allResults.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
+            var spConnector = new SPOSiteCollectionLoader(_config!, _config!.DevConfig.DefaultSharePointSite, _tracer);
+
+            var crawler = new SiteListsAndLibrariesCrawler<ListItemCollectionPosition>(spConnector, _tracer);
+            var allResults = await crawler.CrawlList(new SPOListLoader(targetList, spConnector), new ListFolderConfig(), null);
+            var discoveredFile = allResults.FilesFound.Where(r => r.ServerRelativeFilePath.Contains(fileTitle)).FirstOrDefault();
             return discoveredFile;
         }
 

@@ -5,6 +5,8 @@ using SPO.ColdStorage.Migration.Engine.Utils;
 using SPO.ColdStorage.Models;
 using SPO.ColdStorage.Migration.Engine.Utils.Extentions;
 using SPO.ColdStorage.Migration.Engine.Utils.Http;
+using SPO.ColdStorage.Migration.Engine.Connectors;
+using Microsoft.SharePoint.Client;
 
 namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 {
@@ -97,9 +99,8 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                     return _model;
                 }
 
-                var crawler = new SiteListsAndLibrariesCrawler(_config, _site.RootURL, _tracer,
-                    (SharePointFileInfoWithList foundFile) => Crawler_SharePointFileFound(foundFile, batchSize, newFilesCallback),
-                    () => CrawlComplete(newFilesCallback));
+                var spConnector = new SPOSiteCollectionLoader(_config, _site.RootURL, _tracer);
+                var crawler = new SiteListsAndLibrariesCrawler<ListItemCollectionPosition>(spConnector, _tracer);
 
                 // Begin and block until all files crawled
                 _model.Started = DateTime.Now;
@@ -107,7 +108,8 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                 // Run background tasks
                 _ = Task.Run(() => StartAnalysisStatsUpdates()).ConfigureAwait(false);
 
-                await crawler.StartSiteCrawl(_siteFilterConfig);
+                await crawler.StartSiteCrawl(_siteFilterConfig, (SharePointFileInfoWithList foundFile) => Crawler_SharePointFileFound(foundFile, batchSize, newFilesCallback),
+                    () => CrawlComplete(newFilesCallback));
 
                 _tracer.TrackTrace($"STAGE 1/2: Finished crawling site files. Waiting for background update tasks to finish...");
                 await Task.WhenAll(BackgroundMetaTasksAnalytics);

@@ -51,9 +51,9 @@ namespace SPO.ColdStorage.Tests
             const int INSERTS = 100;
             for (int i = 0; i < INSERTS; i++)
             {
-                var siteUrl = "/site" + i;
-                var webUrl = siteUrl + "/web" + i;
-                list.Add(new DocumentSiteWithMetadata
+                var siteUrl = "/site" + DateTime.Now.Ticks;
+                var webUrl = siteUrl + "/web" + DateTime.Now.Ticks;
+                var newDoc = new DocumentSiteWithMetadata
                 {
                     AccessCount = i,
                     Author = $"Author {i}",
@@ -66,7 +66,10 @@ namespace SPO.ColdStorage.Tests
                     WebUrl = webUrl,
                     ServerRelativeFilePath = webUrl + "/file.aspx",
                     LastModified = DateTime.Now
-                });
+                };
+
+                list.Add(newDoc);
+                Assert.IsTrue(newDoc.IsValidInfo);
             }
 
             using (var db = new SPOColdStorageDbContext(_config!))

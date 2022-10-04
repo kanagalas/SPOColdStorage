@@ -2,8 +2,11 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.SharePoint.Client;
 using SPO.ColdStorage.Entities;
 using SPO.ColdStorage.Entities.Configuration;
+using SPO.ColdStorage.Entities.Migrations;
+using SPO.ColdStorage.Migration.Engine.Connectors;
 using SPO.ColdStorage.Migration.Engine.Migration;
 using SPO.ColdStorage.Models;
 
@@ -74,8 +77,10 @@ namespace SPO.ColdStorage.Migration.Engine
 
             _tracer.TrackTrace($"Scanning site-collection '{siteUrl}'...");
 
-            var crawler = new SiteListsAndLibrariesCrawler(_config, siteUrl, _tracer, Crawler_SharePointFileFound, null);
-            await crawler.StartSiteCrawl(siteFolderConfig);
+            var spConnector = new SPOSiteCollectionLoader(_config, siteUrl, _tracer);
+
+            var crawler = new SiteListsAndLibrariesCrawler<ListItemCollectionPosition>(spConnector, _tracer);
+            await crawler.StartSiteCrawl(siteFolderConfig, Crawler_SharePointFileFound, null);
         }
 
         /// <summary>
