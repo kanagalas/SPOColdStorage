@@ -19,14 +19,22 @@ namespace SPO.ColdStorage.Migration.Engine.Connectors
             _siteUrl = siteUrl;
             _tracer = tracer;
         }
-
         public async Task<ClientContext> GetOrRefreshContext()
+        {
+            return await GetOrRefreshContext(null)!;
+        }
+        public async Task<ClientContext> GetOrRefreshContext(Action? newTokenCallback)
         {
             if (_contextAuthResult == null || _contextAuthResult.ExpiresOn < DateTime.Now.AddMinutes(-5))
             {
                 _tracer.TrackTrace($"Refreshing SPO access token...");
                 _context = await AuthUtils.GetClientContext(_config, _siteUrl, _tracer, (AuthenticationResult auth) => _contextAuthResult = auth);
                 await EnsureContextWebIsLoaded(_context);
+
+                if (newTokenCallback != null)
+                {
+                    newTokenCallback();
+                }
             }
             return _context!;
         }
