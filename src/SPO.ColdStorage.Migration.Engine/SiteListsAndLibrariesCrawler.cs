@@ -52,7 +52,7 @@ namespace SPO.ColdStorage.Migration.Engine
         {
             PageResponse<T>? listPage = null;
 
-            var listResults = new SiteCrawlContentsAndStats();
+            var listResultsAll = new SiteCrawlContentsAndStats();
             T? token = default(T);
 
             int pageCount = 1;
@@ -70,22 +70,27 @@ namespace SPO.ColdStorage.Migration.Engine
                         {
                             await foundFileCallback.Invoke(file);
                         }
-                        listResults.FilesFound.Add(file);
+                        listResultsAll.FilesFound.Add(file);
                     }
                     else
                     {
-                        listResults.IgnoredFiles++;
+                        listResultsAll.IgnoredFiles++;
                     }
                 }
-                _tracer.TrackTrace($"Loaded {listPage.FilesFound.Count.ToString("N0")} files and {listPage.FoldersFound.Count.ToString("N0")} folders from list '{parentList.Title}' on page {pageCount}");
+                _tracer.TrackTrace($"Loaded {listPage.FilesFound.Count.ToString("N0")} files and {listPage.FoldersFound.Count.ToString("N0")} folders from list '{parentList.Title}' on page {pageCount}...");
 
                 // Add unique folders
-                listResults.FoldersFound.AddRange(listPage.FoldersFound.Where(newFolderFound => !listResults.FoldersFound.Contains(newFolderFound)));
+                listResultsAll.FoldersFound.AddRange(listPage.FoldersFound.Where(newFolderFound => !listResultsAll.FoldersFound.Contains(newFolderFound)));
 
                 pageCount++;
             }
-            
-            return listResults;
+            if (pageCount > 1)
+            {
+                _tracer.TrackTrace($"List '{parentList.Title}' totals: {listResultsAll.FilesFound.Count.ToString("N0")} files in scope, " +
+                    $"{listResultsAll.IgnoredFiles.ToString("N0")} files ignored, and {listResultsAll.FoldersFound.Count.ToString("N0")} folders");
+            }
+
+            return listResultsAll;
 
         }
     }
