@@ -1,4 +1,5 @@
-﻿using SPO.ColdStorage.Migration.Engine.Utils.Http;
+﻿using SPO.ColdStorage.Migration.Engine.SnapshotBuilder;
+using SPO.ColdStorage.Migration.Engine.Utils.Http;
 using SPO.ColdStorage.Models;
 using System.Text.Json;
 
@@ -6,13 +7,13 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
 {
     public static class GraphFileInfoListExtensions
     {
-        public static async Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>> GetDriveItemsAnalytics(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer)
+        public static async Task<BackgroundUpdate> GetDriveItemsAnalytics(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer)
         {
             return await GetDriveItemsAnalytics(graphFiles, baseSiteAddress, httpClient, tracer, 100);
         }
-        public static async Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>> GetDriveItemsAnalytics(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer, int waitMs)
+        public static async Task<BackgroundUpdate> GetDriveItemsAnalytics(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer, int waitMs)
         {
-            var fileSuccessResults = new Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>();
+            var fileSuccessResults = new Dictionary<DocumentSiteWithMetadata, object>();
 
             foreach (var fileToUpdate in graphFiles)
             {
@@ -55,16 +56,16 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
                     tracer.TrackTrace($"Got general exception {ex.Message} getting analytics data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                 }
             }
-            return fileSuccessResults;
+            return new BackgroundUpdate { UpdateResults = fileSuccessResults };
         }
 
-        public static async Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>> GetDriveItemsHistory(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer)
+        public static async Task<BackgroundUpdate> GetDriveItemsHistory(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer)
         { 
             return await GetDriveItemsHistory(graphFiles, baseSiteAddress, httpClient, tracer, 100);
         }
-        public static async Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>> GetDriveItemsHistory(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer, int waitMs)
+        public static async Task<BackgroundUpdate> GetDriveItemsHistory(this List<DocumentSiteWithMetadata> graphFiles, string baseSiteAddress, SecureSPThrottledHttpClient httpClient, DebugTracer tracer, int waitMs)
         {
-            var fileSuccessResults = new Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>();
+            var fileSuccessResults = new Dictionary<DocumentSiteWithMetadata, object>();
 
             foreach (var fileToUpdate in graphFiles)
             {
@@ -106,7 +107,8 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
                     tracer.TrackTrace($"Got general exception {ex.Message} getting version data for drive item {fileToUpdate.GraphItemId}", Microsoft.ApplicationInsights.DataContracts.SeverityLevel.Error);
                 }
             }
-            return fileSuccessResults;
+
+            return new BackgroundUpdate() { UpdateResults = fileSuccessResults };
         }
     }
 }

@@ -25,8 +25,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
         private bool _showStats = false;
         private List<SharePointFileInfoWithList> _fileFoundBuffer = new();
-        private List<Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>>> _backgroundMetaTasksAnalytics = new();
-        private List<Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>>> _backgroundMetaTasksVersionHistory = new();
+        private List<Task<BackgroundUpdate>> _backgroundMetaTasksAll = new();
 
 
         public SiteModelBuilder(Config config, DebugTracer debugTracer, TargetMigrationSite site) : base(config, debugTracer)
@@ -68,12 +67,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
         /// <summary>
         /// Background tasks getting item analytics
         /// </summary>
-        public List<Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>>> BackgroundMetaTasksAnalytics { get => _backgroundMetaTasksAnalytics; }
-
-        /// <summary>
-        /// Background tasks reading item history
-        /// </summary>
-        public List<Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>>> BackgroundMetaTasksVersionHistory { get => _backgroundMetaTasksVersionHistory; }
+        public List<Task<BackgroundUpdate>> BackgroundMetaTasksAll { get => _backgroundMetaTasksAll; }
 
         public async Task<SiteSnapshotModel> Build()
         {
@@ -88,7 +82,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
             if (!_model.Finished.HasValue)
             {
-                Microsoft.SharePoint.Client.ClientContext? ctx = null;
+                ClientContext? ctx = null;
                 try
                 {
                     ctx = await AuthUtils.GetClientContext(_config, _site.RootURL, _tracer, null);
@@ -112,8 +106,7 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                     () => CrawlComplete(newFilesCallback));
 
                 _tracer.TrackTrace($"STAGE 1/2: Finished crawling site files. Waiting for background update tasks to finish...");
-                await Task.WhenAll(BackgroundMetaTasksAnalytics);
-                await Task.WhenAll(BackgroundMetaTasksVersionHistory);
+                await Task.WhenAll(BackgroundMetaTasksAll);
 
                 var filesToGetAnalysisFor = true;
                 while (filesToGetAnalysisFor)
@@ -178,13 +171,17 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
 
         #endregion
 
+
+        private SemaphoreSlim _bgTasksLimit = new(1, 1);
         async Task UpdatePendingFilesAsync(int batchSize, List<SharePointFileInfoWithList> filesToUpdate, Action<List<DocumentSiteWithMetadata>>? filesUpdatedCallback)
         {
-            var backgroundAnalyticsTasksThisChunk = new List<Task<Dictionary<DocumentSiteWithMetadata, ItemAnalyticsRepsonse>>>();
-            var backgroundVersionTasksThisChunk = new List<Task<Dictionary<DocumentSiteWithMetadata, DriveItemVersionInfo>>>();
+            var backgroundTasksThisChunk = new List<Task<BackgroundUpdate>>();
 
             // Begin background loading of extra metadata
             var pendingFilesToAnalyse = new List<DocumentSiteWithMetadata>();
+
+            // Throttle requests to one set of files to update at once
+            await _bgTasksLimit.WaitAsync();
 
             foreach (var fileToUpdate in filesToUpdate)
             {
@@ -205,16 +202,16 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                     pendingFilesToAnalyse.Clear();
 
                     // Background process chunk
-                    backgroundAnalyticsTasksThisChunk.Add(newFileChunkCopy.GetDriveItemsAnalytics(_site.RootURL, _httpClient, _tracer));
-                    backgroundVersionTasksThisChunk.Add(newFileChunkCopy.GetDriveItemsHistory(_site.RootURL, _httpClient, _tracer));
+                    backgroundTasksThisChunk.Add(newFileChunkCopy.GetDriveItemsAnalytics(_site.RootURL, _httpClient, _tracer));
+                    backgroundTasksThisChunk.Add(newFileChunkCopy.GetDriveItemsHistory(_site.RootURL, _httpClient, _tracer));
                 }
             }
 
             // Background process the rest
             if (pendingFilesToAnalyse.Count > 0)
             {
-                backgroundAnalyticsTasksThisChunk.Add(pendingFilesToAnalyse.GetDriveItemsAnalytics(_site.RootURL, _httpClient, _tracer));
-                backgroundVersionTasksThisChunk.Add(pendingFilesToAnalyse.GetDriveItemsHistory(_site.RootURL, _httpClient, _tracer));
+                backgroundTasksThisChunk.Add(pendingFilesToAnalyse.GetDriveItemsAnalytics(_site.RootURL, _httpClient, _tracer));
+                backgroundTasksThisChunk.Add(pendingFilesToAnalyse.GetDriveItemsHistory(_site.RootURL, _httpClient, _tracer));
             }
             else
             {
@@ -224,39 +221,32 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
             // Update global tasks
             lock (this)
             {
-                BackgroundMetaTasksAnalytics.AddRange(backgroundAnalyticsTasksThisChunk);
-                BackgroundMetaTasksVersionHistory.AddRange(backgroundVersionTasksThisChunk);
+                BackgroundMetaTasksAll.AddRange(backgroundTasksThisChunk);
             }
 
-            // Compile analytics results
-            await Task.WhenAll(backgroundAnalyticsTasksThisChunk);
-
+            // Compile results as they come
+            var versionUpdates = new Dictionary<DriveItemSharePointFileInfo, DriveItemVersionInfo>();
             var analyticsUpdates = new Dictionary<DriveItemSharePointFileInfo, ItemAnalyticsRepsonse.AnalyticsItemActionStat>();
-            foreach (var backgroundTask in backgroundAnalyticsTasksThisChunk)
+
+            await Task.WhenAll(backgroundTasksThisChunk);
+
+            foreach (var finishedTask in backgroundTasksThisChunk)
             {
-                foreach (var stat in backgroundTask.Result)
+                foreach (var stat in finishedTask.Result.UpdateResults)
                 {
-                    if (stat.Value.AccessStats != null)
+                    if (stat.Value is DriveItemVersionInfo)
                     {
-                        analyticsUpdates.Add(stat.Key, stat.Value.AccessStats);
+                        versionUpdates.Add(stat.Key, (DriveItemVersionInfo)stat.Value);
+                    }
+                    else if (stat.Value is ItemAnalyticsRepsonse)
+                    {
+                        analyticsUpdates.Add(stat.Key, ((ItemAnalyticsRepsonse)stat.Value).AccessStats ?? new ItemAnalyticsRepsonse.AnalyticsItemActionStat());
                     }
                 }
             }
 
-            // Compile version history results
-            await Task.WhenAll(backgroundVersionTasksThisChunk);
-
-            var versionUpdates = new Dictionary<DriveItemSharePointFileInfo, IEnumerable<DriveItemVersion>>();
-            foreach (var backgroundTask in backgroundVersionTasksThisChunk)
-            {
-                foreach (var stat in backgroundTask.Result)
-                {
-                    if (stat.Value.Versions != null)
-                    {
-                        versionUpdates.Add(stat.Key, stat.Value.Versions);
-                    }
-                }
-            }
+            // Release throttle now chunk is completed
+            _bgTasksLimit.Release();
 
             // Update model with metadata & fire event
             var updatedFiles = new List<DocumentSiteWithMetadata>();
@@ -265,8 +255,8 @@ namespace SPO.ColdStorage.Migration.Engine.SnapshotBuilder
                 lock (this)
                 {
                     // Update model
-                    var itemVersionInfo = versionUpdates.Where(i=> i.Key.Equals(fileUpdated.Key)).SingleOrDefault();
-                    updatedFiles.Add(_model.UpdateDocItemAndInvalidateCaches(fileUpdated.Key, fileUpdated.Value, itemVersionInfo.Value.ToVersionStorageInfo()));
+                    var itemVersionInfo = versionUpdates.Where(i => i.Key.Equals(fileUpdated.Key)).SingleOrDefault();
+                    updatedFiles.Add(_model.UpdateDocItemAndInvalidateCaches(fileUpdated.Key, fileUpdated.Value, itemVersionInfo.Value.Versions.ToVersionStorageInfo()));
                 }
             }
 
