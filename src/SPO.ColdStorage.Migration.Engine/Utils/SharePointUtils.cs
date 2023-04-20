@@ -12,7 +12,7 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
         /// <summary>
         /// Save file & return new item GUID
         /// </summary>
-        public static async Task<Guid> SaveFile(this List targetList, ClientContext ctx, string fileName, byte[] contents)
+        public static async Task<Guid> SaveFile(this List targetList, ClientContext ctx, string fileName, byte[] contents, DebugTracer debugTracer)
         {
             var fileCreationInfo = new FileCreationInformation
             {
@@ -22,7 +22,7 @@ namespace SPO.ColdStorage.Migration.Engine.Utils
             };
             var uploadFile = targetList.RootFolder.Files.Add(fileCreationInfo);
             ctx.Load(uploadFile);
-            await ctx.ExecuteQueryAsync();
+            await ctx.ExecuteQueryAsyncWithThrottleRetries(debugTracer);
 
             return uploadFile.UniqueId;
         }

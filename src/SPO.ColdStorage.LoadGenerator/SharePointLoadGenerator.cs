@@ -8,10 +8,12 @@ namespace SPO.ColdStorage.LoadGenerator
     internal class SharePointLoadGenerator
     {
         private readonly Options _options;
+        private readonly DebugTracer _debugTracer;
 
-        public SharePointLoadGenerator(Options options)
+        public SharePointLoadGenerator(Options options, DebugTracer debugTracer)
         {
             this._options = options;
+            _debugTracer = debugTracer;
         }
 
         public async Task CreateFiles(int fileCount)
@@ -59,7 +61,6 @@ namespace SPO.ColdStorage.LoadGenerator
                 {
                     try
                     {
-
                         if (list.BaseType == BaseType.GenericList)
                         {
                             await AddFileToCustomList(list, ctx);
@@ -68,13 +69,16 @@ namespace SPO.ColdStorage.LoadGenerator
                         {
                             await AddFileToDocLib(list, ctx);
                         }
+                        Console.WriteLine($"{threadIndex}: {i}/{filesToInsert}");
                     }
                     catch (System.Net.WebException ex)
                     {
                         Console.WriteLine($"Got error on thread {threadIndex} creating file: {ex.Message}.");
-                        
                     }
-                    Console.WriteLine(fileStartIndex + i);
+                    catch (ServerException ex)
+                    {
+                        Console.WriteLine($"Got server error on thread {threadIndex} creating file: {ex.Message}.");
+                    }
                 }
             }
         }
@@ -109,10 +113,20 @@ namespace SPO.ColdStorage.LoadGenerator
                 ctx.Load(list, l => l.BaseType, l => l.IsSystemList);
                 ctx.Load(list.RootFolder);
                 ctx.Load(list, l => l.RootFolder.Name);
-                await ctx.ExecuteQueryAsync();
+
+                var addList = false;
+                try
+                {
+                    await ctx.ExecuteQueryAsyncWithThrottleRetries(_debugTracer);
+                    addList = true;
+                }
+                catch (ServerUnauthorizedAccessException)
+                {
+                    Console.WriteLine($"Couldn't read '{list.Title}' - Unauthorized Access");
+                }
 
                 // Only upload to safe lists
-                if (!list.IsSystemList && !list.Hidden)
+                if (addList && !list.IsSystemList && !list.Hidden)
                 {
                     results.Add(list);
                 }
@@ -123,7 +137,7 @@ namespace SPO.ColdStorage.LoadGenerator
 
         private async Task AddFileToDocLib(List list, ClientContext ctx)
         {
-            await list.SaveFile(ctx, $"test{DateTime.Now.Ticks}.txt", Encoding.UTF8.GetBytes("bum"));
+            await list.SaveFile(ctx, $"test{DateTime.Now.Ticks}.txt", Encoding.UTF8.GetBytes("bum"), _debugTracer);
         }
 
         private async Task AddFileToCustomList(List list, ClientContext ctx)
@@ -135,8 +149,7 @@ namespace SPO.ColdStorage.LoadGenerator
 
             oListItem.Update();
 
-            var tracer = DebugTracer.ConsoleOnlyTracer();
-            await ctx.ExecuteQueryAsyncWithThrottleRetries(tracer);
+            await ctx.ExecuteQueryAsyncWithThrottleRetries(_debugTracer);
 
             var attInfo = new AttachmentCreationInformation();
             attInfo.FileName = newName + ".txt";
@@ -148,7 +161,7 @@ namespace SPO.ColdStorage.LoadGenerator
 
             try
             {
-                await ctx.ExecuteQueryAsyncWithThrottleRetries(tracer);
+                await ctx.ExecuteQueryAsyncWithThrottleRetries(_debugTracer);
             }
             catch (ServerException ex)
             {
