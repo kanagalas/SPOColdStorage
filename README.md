@@ -89,6 +89,7 @@ b.	Ensure that under “authentication” we have added “single page applicati
 ```
 
 5.	This creates a “pfx” file in the location you run the command. This file we’ll upload to an Azure Key Vault later.
+   Note: if you have a PFX file already, you can use "$cert = Get-PnPAzureCertificate -Path XXX" to use this certificate. 
 
 5.	Copy certificate public-key into Azure AD application manifest.
     *	Get credentials from the certificate object by outputting the “$cert.KeyCredentials” object from above command.
