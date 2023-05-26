@@ -75,7 +75,7 @@ a.	Note down the “client ID”, “tenant ID”.
 b.	Ensure that under “authentication” we have added “single page application” with the redirect URL of our base website (https://spocoldstorage.azurewebsites.net in our example)
 2.	Create a secret for registration. Note down value.
 3.	Next, we’ll enable access to SharePoint Online data. This requires us to generate a certificate for access.
-4.	Generate PFX for Azure AD application in PowerShell.
+4.	Generate PFX for Azure AD application in PowerShell (requires PnP PowerShell - https://pnp.github.io/powershell/articles/installation.html).
 
 ```powershell
   $Password = "Corp123!"
